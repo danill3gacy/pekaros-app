@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>КофейняОС — дашборд кофейни</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%236F4326'/%3E%3Ctext y='72' x='50' font-size='56' text-anchor='middle'%3E%E2%98%95%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#FAF6F1; --surface:#FFFFFF; --surface-2:#FAF5EF; --ink:#241A12; --ink-2:#4a3c30;
+  --muted:#8A7A6B; --line:#EBE1D4; --line-2:#F4EDE3;
+  --brand:#6F4326; --brand-2:#8a5732; --brand-soft:#F2E7DC; --brand-ink:#5b3620;
+  --green:#2E7D5B; --green-soft:#E4F1EA; --amber:#B9770F; --amber-soft:#FBEEDB;
+  --red:#B23A2E; --red-soft:#F7E6E3; --blue:#3B6EA5; --blue-soft:#E7EEF6;
+  --shadow-sm:0 1px 2px rgba(36,26,18,.06);
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+button,input{font-family:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:22px 18px 70px}
+
+.head{display:flex;align-items:center;gap:13px;margin-bottom:16px;flex-wrap:wrap}
+.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#8a5732,#4d2d18);
+  display:grid;place-items:center;color:#fff;font-size:21px;flex:none;box-shadow:var(--shadow-sm)}
+.head h1{margin:0;font-size:19px;letter-spacing:-.3px}
+.head .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.flags{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.flag{font-size:11.5px;font-weight:650;padding:5px 10px;border-radius:999px;white-space:nowrap}
+.flag.demo{background:var(--amber-soft);color:var(--amber)}
+.flag.stale{background:var(--red-soft);color:var(--red)}
+.flag.ok{background:var(--green-soft);color:var(--green)}
+.flag.info{background:var(--blue-soft);color:var(--blue)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow-sm);padding:16px 18px}
+.sec{margin-top:18px}
+h2{font-size:15px;margin:0 0 3px}
+.hint{font-size:12.3px;color:var(--muted);margin:0 0 12px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:1fr 1fr}
+@media(max-width:900px){.g4{grid-template-columns:1fr 1fr}.g3,.g2{grid-template-columns:1fr}}
+@media(max-width:560px){.g4{grid-template-columns:1fr}.wrap{padding:16px 13px 70px}.flags{margin-left:0;width:100%}}
+
+.tile .t{font-size:12.2px;color:var(--muted)}
+.tile .v{font-size:25px;font-weight:680;margin-top:6px;letter-spacing:-.6px;font-variant-numeric:tabular-nums}
+.tile .n{font-size:11.8px;color:var(--muted);margin-top:6px}
+.chg{font-size:11.5px;display:inline-block;padding:2px 7px;border-radius:6px;font-weight:600;margin-top:8px}
+.up{color:var(--green);background:var(--green-soft)}
+.down{color:var(--red);background:var(--red-soft)}
+.flat{color:var(--muted);background:var(--line-2)}
+
+.note{display:flex;gap:11px;align-items:flex-start;padding:12px 13px;border-radius:12px;font-size:13px;margin-bottom:10px}
+.note:last-child{margin-bottom:0}
+.note.warn{background:var(--amber-soft)}
+.note.bad{background:var(--red-soft)}
+.note.ok{background:var(--green-soft)}
+.note.info{background:var(--blue-soft)}
+.note .i{font-size:16px;flex:none;line-height:1.3}
+.assume{font-size:11.8px;color:var(--muted);margin-top:9px;line-height:1.5;
+  border-left:2px solid var(--line);padding-left:9px}
+.empty{color:var(--muted);font-size:13px;padding:10px 0}
+
+.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line-2)}
+.row:last-child{border-bottom:none}
+.row .nm{font-size:13.6px}
+.row .meta{font-size:11.8px;color:var(--muted);margin-top:1px}
+.row .val{margin-left:auto;font-weight:650;font-size:13.6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:4px;background:var(--line-2);overflow:hidden;margin-top:5px;max-width:190px}
+.bar>span{display:block;height:100%;background:var(--brand)}
+
+table{width:100%;border-collapse:collapse;font-size:13.2px}
+th{text-align:left;font-size:10.8px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
+  font-weight:700;padding:8px 8px;border-bottom:1px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.chip{display:inline-block;padding:2px 8px;border-radius:7px;font-size:11.4px;font-weight:650}
+.c-up{background:var(--green-soft);color:var(--green)}
+.c-down{background:var(--red-soft);color:var(--red)}
+.c-flat{background:var(--line-2);color:var(--muted)}
+.c-warn{background:var(--amber-soft);color:var(--amber)}
+.c-bad{background:var(--red-soft);color:var(--red)}
+
+.plan{display:inline-flex;align-items:center;gap:6px}
+.step{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--surface);
+  cursor:pointer;font-size:15px;line-height:1;color:var(--ink)}
+.step:hover:not(:disabled){border-color:var(--brand);color:var(--brand-ink)}
+.step:disabled{opacity:.45;cursor:default}
+.planval{min-width:30px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.planval.saving{color:var(--muted)}
+.planval.err{color:var(--red)}
+.psave{font-size:11px;color:var(--muted);margin-left:6px;white-space:nowrap}
+.psave.err{color:var(--red)}
+.psave.ok{color:var(--green)}
+
+.btn{background:var(--brand);color:#fff;border:none;border-radius:10px;padding:10px 16px;
+  font-size:13px;cursor:pointer;font-weight:600}
+.btn:hover:not(:disabled){background:var(--brand-2)}
+.btn:disabled{opacity:.6;cursor:default}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;
+  padding-top:14px;border-top:1px solid var(--line)}
+
+.hours{display:flex;align-items:flex-end;gap:3px;height:150px;margin-top:6px;position:relative}
+.hbar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;min-width:0}
+.hbar .b{background:var(--brand);border-radius:3px 3px 0 0;min-height:2px}
+.hbar.tight .b{background:var(--red)}
+.hbar .l{font-size:9.5px;color:var(--muted);text-align:center;margin-top:4px;overflow:hidden;white-space:nowrap}
+.cap{position:absolute;left:0;right:0;border-top:2px dashed var(--red);pointer-events:none}
+.cap span{position:absolute;right:0;top:-15px;font-size:10px;color:var(--red);font-weight:650;background:var(--surface);padding:0 4px}
+.week{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:6px}
+.wbar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;min-width:0}
+.wbar .b{background:#D8BFA4;border-radius:5px 5px 0 0;min-height:2px}
+.wbar.last .b{background:var(--brand)}
+.wbar .l{font-size:10.5px;color:var(--muted);text-align:center;margin-top:5px}
+.wbar .vv{font-size:10px;color:var(--muted);text-align:center;margin-bottom:3px;overflow:hidden;white-space:nowrap}
+
+.groups{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:4px}
+@media(max-width:900px){.groups{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.groups{grid-template-columns:1fr}}
+.grp{border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:var(--surface-2)}
+.grp .gt{font-size:12.5px;font-weight:700;margin-bottom:3px}
+.grp .gd{font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.45}
+.grp li{font-size:12.6px;margin-bottom:3px}
+.grp ul{margin:0;padding-left:16px}
+
+.ask{display:flex;gap:9px;margin-top:4px}
+.ask input{flex:1;min-width:0;border:1px solid var(--line);border-radius:11px;padding:11px 13px;
+  font-size:14px;outline:none;background:var(--surface);color:var(--ink)}
+.ask input:focus{border-color:var(--brand)}
+.answer{margin-top:13px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;
+  padding:13px 15px;font-size:13.6px;white-space:pre-wrap;word-wrap:break-word}
+.foot{margin-top:26px;font-size:11.7px;color:var(--muted);text-align:center;line-height:1.6}
+.skeleton{color:var(--muted);font-size:13.5px;padding:14px 0}
+#fatal{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div class="logo">☕</div>
+    <div>
+      <h1 id="venueName">КофейняОС</h1>
+      <div class="sub" id="dateLine">загрузка данных…</div>
+    </div>
+    <div class="flags" id="flags"></div>
+  </div>
+
+  <div class="card" id="fatal"></div>
+  <div class="skeleton" id="loading">Считаю по вашим чекам…</div>
+  <div id="warnings"></div>
+
+  <div id="body" style="display:none">
+
+    <div class="grid g4" id="tiles"></div>
+
+    <div class="sec grid g2">
+      <div class="card">
+        <h2>Упущенная выручка витрины</h2>
+        <p class="hint">Гость не нашёл завтрак и взял только кофе. Этих денег нет в кассе.</p>
+        <div id="lostBox"></div>
+      </div>
+      <div class="card">
+        <h2>Витрина <span id="caseDate" style="font-weight:500;color:var(--muted)"></span></h2>
+        <p class="hint">Заказ намеренно выше среднего спроса: пустая витрина стоит дороже остатка.</p>
+        <div id="caseBox"></div>
+        <div class="actions" id="caseFooter" style="display:none">
+          <button class="btn" id="approveBtn">Утвердить и отправить смене</button>
+          <span id="approveMsg" style="font-size:12.5px;color:var(--muted)"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec card">
+      <h2>Маржа и разбор меню</h2>
+      <p class="hint" id="marginHint"></p>
+      <div class="groups" id="groupsBox"></div>
+      <div style="margin-top:16px" id="marginTable"></div>
+    </div>
+
+    <div class="sec grid g2">
+      <div class="card">
+        <h2>Еда к кофе</h2>
+        <p class="hint" id="attachHint"></p>
+        <div id="attachBox"></div>
+      </div>
+      <div class="card">
+        <h2>Молоко</h2>
+        <p class="hint">Наценка за растительное молоко ставится один раз, а закупка дорожает.</p>
+        <div id="milkBox"></div>
+      </div>
+    </div>
+
+    <div class="sec card">
+      <h2>Загрузка и смена</h2>
+      <p class="hint" id="loadHint"></p>
+      <div id="loadBox"></div>
+      <div id="shiftBox"></div>
+    </div>
+
+    <div class="sec card">
+      <h2>Заявка поставщику</h2>
+      <p class="hint" id="supplyHint"></p>
+      <div id="supplyBox"></div>
+      <div class="actions" id="supplyFooter" style="display:none">
+        <button class="btn" id="orderBtn">Отправить поставщику</button>
+        <span id="orderMsg" style="font-size:12.5px;color:var(--muted)"></span>
+      </div>
+    </div>
+
+    <div class="sec grid g3">
+      <div class="card"><h2>Что пьют</h2><p class="hint" id="drinksHint"></p><div id="drinksBox"></div></div>
+      <div class="card"><h2>Выручка по категориям</h2><p class="hint" id="catHint"></p><div id="catBox"></div></div>
+      <div class="card"><h2>Списания</h2><p class="hint" id="wasteHint"></p><div id="wasteBox"></div></div>
+    </div>
+
+    <div class="sec grid g2">
+      <div class="card"><h2>Выручка за неделю</h2><p class="hint">Последние 7 дней.</p><div id="weekBox"></div></div>
+      <div class="card"><h2>Оплата и обслуживание</h2><p class="hint" id="payHint"></p><div id="payBox"></div><div id="maintBox"></div></div>
+    </div>
+
+    <div class="sec card">
+      <h2>Спросить о кофейне</h2>
+      <p class="hint">Например: «какая маржа у рафа?», «на сколько хватит зерна?», «во сколько пик?»</p>
+      <div class="ask">
+        <input id="askInput" placeholder="Ваш вопрос" autocomplete="off">
+        <button class="btn" id="askBtn">Спросить</button>
+      </div>
+      <div class="answer" id="askAnswer" style="display:none"></div>
+    </div>
+
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var D = null, CASE = [], CASE_DATE = "";
+
+/* ---------- утилиты ---------- */
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+  });
+}
+function num(n){ return isNum(n) ? Math.round(n).toLocaleString("ru-RU") : "—"; }
+function money(n){ return isNum(n) ? num(n)+" ₽" : "—"; }
+function pct(x,d){ return isNum(x) ? (x*100).toFixed(d==null?0:d)+"%" : "—"; }
+function one(n){ return isNum(n) ? (Math.round(n*10)/10).toLocaleString("ru-RU") : "—"; }
+function el(id){ return document.getElementById(id); }
+function isNum(v){ return typeof v==="number" && isFinite(v); }
+function has(a){ return Array.isArray(a) && a.length>0; }
+function hh(h){ return (h<10?"0":"")+h+":00"; }
+function plural(n,a,b,c){
+  var n10=n%10, n100=n%100;
+  if(n10===1 && n100!==11) return a;
+  if(n10>=2 && n10<=4 && (n100<10||n100>=20)) return b;
+  return c;
+}
+function row(name, val, meta){
+  return '<div class="row"><div><div class="nm">'+esc(name)+'</div>'+
+    (meta?'<div class="meta">'+esc(meta)+'</div>':'')+'</div>'+
+    '<div class="val">'+val+'</div></div>';
+}
+
+function apiGet(url){
+  return fetch(url,{headers:{"Accept":"application/json"}}).then(function(r){
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return r.json();
+  });
+}
+function apiPost(url, body){
+  return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body||{})}).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(j){
+      if(!r.ok) throw new Error(j.detail||("HTTP "+r.status));
+      return j;
+    });
+  });
+}
+function fatal(title, text){
+  el("loading").style.display="none";
+  var f = el("fatal");
+  f.style.display="block";
+  f.innerHTML='<div class="note bad"><span class="i">🔴</span><div><b>'+esc(title)+'</b><br>'+esc(text)+'</div></div>';
+}
+
+/* ---------- загрузка ---------- */
+function boot(){
+  Promise.all([apiGet("/api/summary"), apiGet("/api/health").catch(function(){return null;})])
+    .then(function(res){
+      D = res[0]; D.health = res[1];
+      if(!D || !isNum(D.revenue)){ fatal("Нет данных","Сервер не вернул сводку."); return; }
+      el("loading").style.display="none";
+      el("body").style.display="block";
+      render();
+    })
+    .catch(function(e){
+      fatal("Не удалось получить данные",
+        "Сервер КофейняОС не ответил ("+e.message+"). Проверьте, что он запущен: python -m coffeeos web");
+    });
+}
+
+function render(){
+  renderHead(); renderWarnings(); renderTiles();
+  renderLost(); renderCase();
+  renderMargin(); renderAttach(); renderMilk();
+  renderLoad(); renderSupply();
+  renderDrinks(); renderCats(); renderWaste();
+  renderWeek(); renderPay();
+  setupAsk();
+  el("foot").textContent = "КофейняОС · данные за "+D.date+" · обновлено "+
+    new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
+}
+
+function renderHead(){
+  el("venueName").textContent = D.venue || "КофейняОС";
+  var dq = D.data_quality||{};
+  el("dateLine").textContent = "данные за "+D.date+
+    (isNum(dq.receipts)?" · "+num(dq.receipts)+" "+plural(dq.receipts,"чек","чека","чеков")+" в базе":"");
+  var f=[], h=D.health||{};
+  if(h.demo) f.push('<span class="flag demo">демо-данные</span>');
+  if(h.stale) f.push('<span class="flag stale">данные не обновляются</span>');
+  else if(h.last_ts) f.push('<span class="flag ok">данные свежие</span>');
+  if(dq.has_barista) f.push('<span class="flag info">есть бариста</span>');
+  if(dq.has_guests) f.push('<span class="flag info">есть гости</span>');
+  el("flags").innerHTML = f.join("");
+}
+
+function renderWarnings(){
+  var out=[], dq=D.data_quality||{};
+  (dq.warnings||[]).forEach(function(w){
+    out.push('<div class="note warn"><span class="i">⚠️</span><div>'+esc(w)+'</div></div>');
+  });
+  var e = D.economics||{};
+  if(has(e.unpriced)){
+    out.push('<div class="note info"><span class="i">🏷</span><div>Не заданы закупочные цены: '+
+      e.unpriced.map(esc).join(", ")+'. По этим позициям маржа не считается — '+
+      'напишите боту «цена круассан 76».</div></div>');
+  }
+  el("warnings").innerHTML = out.join("");
+}
+
+function renderTiles(){
+  var e = D.economics||{};
+  var d = D.revenue_delta_pct;
+  var chg = isNum(d) ? '<div class="chg '+(d>0?"up":(d<0?"down":"flat"))+'">'+
+    (d>0?"+":"")+d+"% к прошлой неделе</div>" : "";
+  function tile(t,v,n,extra){
+    return '<div class="card tile"><div class="t">'+esc(t)+'</div><div class="v">'+v+'</div>'+
+      (n?'<div class="n">'+n+'</div>':'')+(extra||"")+'</div>';
+  }
+  var fcNote = "";
+  if(isNum(e.foodcost)){
+    fcNote = e.estimated ? "часть цен типовые" : "по вашим ценам";
+    if(isNum(e.coverage) && e.coverage < 0.97) fcNote += " · посчитано по "+pct(e.coverage)+" выручки";
+  }
+  el("tiles").innerHTML =
+    tile("Выручка за день", money(D.revenue), "", chg) +
+    tile("Чеков", num(D.checks), isNum(D.cups)? num(D.cups)+" "+plural(D.cups,"чашка","чашки","чашек") : "") +
+    tile("Средний чек", money(D.avg_check), "") +
+    tile("Фудкост за период", isNum(e.foodcost)?pct(e.foodcost,1):"—", fcNote);
+}
+
+/* ---------- упущенная выручка ---------- */
+function renderLost(){
+  var t = D.lost_today||{}, l = D.lost||{}, out=[];
+  if(!(D.data_quality||{}).has_time){
+    el("lostBox").innerHTML = '<div class="note warn"><span class="i">⚠️</span><div>'+
+      'В выгрузке нет времени продажи — распроданность витрины не видна.</div></div>';
+    return;
+  }
+  if(has(t.items)){
+    out.push('<div style="font-size:12.5px;color:var(--muted);margin-bottom:4px">Вчера кончилось</div>');
+    t.items.slice(0,5).forEach(function(i){
+      out.push(row(i.name, money(i.lost_money),
+        (isNum(i.hour)?("после "+hh(i.hour)+" · "):"")+"~"+one(i.lost_units)+" шт"));
+    });
+    out.push(row("Итого за вчера","<b>"+money(t.total)+"</b>",""));
+  }
+  if(has(l.items)){
+    out.push('<div style="font-size:12.5px;color:var(--muted);margin:12px 0 4px">'+
+      'В среднем '+money(l.total_per_day)+' в день ≈ <b>'+money(l.total_per_month)+' в месяц</b></div>');
+    l.items.slice(0,5).forEach(function(i){
+      out.push(row(i.name, money(i.lost_money_per_month)+"/мес",
+        "кончался "+i.sellout_days+" "+plural(i.sellout_days,"день","дня","дней")));
+    });
+  }
+  if(!out.length){
+    out.push('<div class="note ok"><span class="i">✅</span><div>Витрина до закрытия не кончалась — весь спрос закрываете.</div></div>');
+  }
+  el("lostBox").innerHTML = out.join("");
+}
+
+/* ---------- витрина ---------- */
+function renderCase(){
+  var p = D.case_order||{};
+  CASE_DATE = p.target||"";
+  el("caseDate").textContent = CASE_DATE ? "на "+CASE_DATE : "";
+  if(!has(p.items)){
+    el("caseBox").innerHTML='<div class="empty">Пока нечего заказывать: в каталоге нет позиций витрины с историей продаж.</div>';
+    return;
+  }
+  CASE = p.items.map(function(x){ return {name:x.name, value:x.recommended}; });
+  var h = '<div class="tbl-scroll"><table><thead><tr><th>Позиция</th>'+
+    '<th class="num">Продаётся</th><th class="num">Ставим</th><th>Почему</th></tr></thead><tbody>';
+  p.items.forEach(function(x,i){
+    var cls = x.tag==="up"?"c-up":(x.tag==="down"?"c-down":"c-flat");
+    h += '<tr><td>'+esc(x.name)+'</td><td class="num">'+num(x.sold_avg)+'</td>'+
+      '<td class="num"><span class="plan">'+
+        '<button class="step" data-i="'+i+'" data-d="-1">−</button>'+
+        '<span class="planval" id="pv'+i+'">'+num(x.recommended)+'</span>'+
+        '<button class="step" data-i="'+i+'" data-d="1">+</button>'+
+      '</span><span class="psave" id="ps'+i+'"></span></td>'+
+      '<td><span class="chip '+cls+'">'+esc(x.note)+'</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  el("caseBox").innerHTML = h;
+  Array.prototype.forEach.call(el("caseBox").querySelectorAll(".step"), function(b){
+    b.addEventListener("click", onStep);
+  });
+  el("caseFooter").style.display="flex";
+  setupApprove();
+}
+
+function onStep(e){
+  var b=e.currentTarget, i=+b.getAttribute("data-i"), d=+b.getAttribute("data-d");
+  var item = CASE[i]; if(!item) return;
+  var next = Math.max(0, item.value + d);
+  if(next === item.value) return;
+  var v = el("pv"+i), s = el("ps"+i);
+  var prev = item.value;
+  item.value = next;
+  v.textContent = num(next); v.className="planval saving"; s.className="psave"; s.textContent="…";
+  setStepDisabled(i,true);
+  apiPost("/api/case/adjust", {name:item.name, qty:next, date:CASE_DATE})
+    .then(function(r){
+      item.value = r.recommended;
+      v.textContent = num(r.recommended); v.className="planval";
+      s.className="psave ok"; s.textContent="сохранено";
+      setTimeout(function(){ if(s) s.textContent=""; }, 2000);
+    })
+    .catch(function(err){
+      item.value = prev;
+      v.textContent = num(prev); v.className="planval err";
+      s.className="psave err"; s.textContent="не сохранено";
+    })
+    .then(function(){ setStepDisabled(i,false); });
+}
+function setStepDisabled(i,v){
+  Array.prototype.forEach.call(
+    el("caseBox").querySelectorAll('.step[data-i="'+i+'"]'), function(b){ b.disabled=v; });
+}
+function setupApprove(){
+  var b = el("approveBtn"), m = el("approveMsg");
+  b.onclick = function(){
+    b.disabled = true; m.textContent = "отправляю…";
+    apiPost("/api/case/approve", {})
+      .then(function(r){
+        if(r.sent_to > 0){
+          m.textContent = "утверждено в "+r.approved_at+", отправлено "+r.sent_to+" получ.";
+        } else {
+          m.textContent = "утверждено и сохранено. Отправлять некому: впишите STAFF_CHAT_IDS в .env";
+        }
+      })
+      .catch(function(e){ m.textContent = "не удалось: "+e.message; b.disabled = false; });
+  };
+}
+
+/* ---------- маржа ---------- */
+var GROUP_TITLE = {
+  "звезда":["⭐ Держат заведение","Высокая маржа и высокий спрос. Их нельзя терять из наличия."],
+  "лошадка":["🐴 Берут охотно, зарабатываете мало","Высокий спрос, низкая маржа: поднять цену или пересчитать рецепт."],
+  "загадка":["❓ Зарабатывают, но их не замечают","Высокая маржа, низкий спрос: вынести в меню и предлагать."],
+  "балласт":["🪨 Кандидаты на вывод","И не продаётся, и не зарабатывает."]
+};
+function renderMargin(){
+  var e = D.economics||{}, m = D.menu_matrix||{};
+  if(!isNum(e.foodcost)){
+    el("marginHint").textContent = "";
+    el("groupsBox").innerHTML = "";
+    el("marginTable").innerHTML = '<div class="note info"><span class="i">🏷</span><div>'+
+      'Маржа пока не считается: не заданы закупочные цены сырья. Напишите боту «цена зерно 1800».</div></div>';
+    return;
+  }
+  el("marginHint").textContent = "Выручка заведения "+money(e.revenue)+
+    " · из неё посчитано "+pct(e.coverage)+": сырьё "+money(e.cost)+
+    " · маржа "+money(e.margin)+" · фудкост "+pct(e.foodcost,1)+
+    (e.estimated? " (часть цен типовые, не ваши)":"");
+
+  var groups = {};
+  (m.items||[]).forEach(function(i){ (groups[i.group]=groups[i.group]||[]).push(i); });
+  var order = ["звезда","лошадка","загадка","балласт"], g=[];
+  order.forEach(function(k){
+    var list = groups[k]; if(!list) return;
+    g.push('<div class="grp"><div class="gt">'+esc(GROUP_TITLE[k][0])+'</div>'+
+      '<div class="gd">'+esc(GROUP_TITLE[k][1])+'</div><ul>'+
+      list.slice(0,6).map(function(i){ return '<li>'+esc(i.name)+'</li>'; }).join("")+
+      '</ul></div>');
+  });
+  el("groupsBox").innerHTML = g.join("");
+
+  var items = (m.items||[]).slice(0,14);
+  if(!items.length){ el("marginTable").innerHTML=""; return; }
+  var target = 0.30;
+  var h = '<div class="tbl-scroll"><table><thead><tr><th>Позиция</th><th class="num">Продано</th>'+
+    '<th class="num">Цена</th><th class="num">Сырьё</th><th class="num">Маржа</th>'+
+    '<th class="num">Фудкост</th><th class="num">Маржа всего</th></tr></thead><tbody>';
+  items.forEach(function(i){
+    var bad = isNum(i.foodcost) && i.foodcost > target;
+    h += '<tr><td>'+esc(i.name)+'</td><td class="num">'+num(i.qty)+'</td>'+
+      '<td class="num">'+num(i.price)+'</td><td class="num">'+num(i.cost)+'</td>'+
+      '<td class="num">'+num(i.margin)+'</td>'+
+      '<td class="num"><span class="chip '+(bad?"c-warn":"c-flat")+'">'+pct(i.foodcost)+'</span></td>'+
+      '<td class="num">'+money(i.margin_total)+'</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  el("marginTable").innerHTML = h;
+}
+
+/* ---------- еда к кофе ---------- */
+function renderAttach(){
+  var a = D.attach||{};
+  if(!isNum(a.rate)){
+    el("attachHint").textContent = "";
+    el("attachBox").innerHTML = '<div class="empty">'+esc(a.note||"Не считается на этих данных.")+'</div>';
+    return;
+  }
+  el("attachHint").textContent = "Напиток покупают и так. Еду добавляют, только если предложили.";
+  var out = [];
+  out.push(row("Кофейных чеков с едой","<b>"+pct(a.rate,1)+"</b>",
+    a.with_food+" из "+a.drink_checks));
+  if(a.morning_vs_day){
+    out.push(row("Утром до 11:00", pct(a.morning_vs_day.morning,1), ""));
+    out.push(row("После 11:00", pct(a.morning_vs_day.day,1),
+      a.morning_vs_day.gap > 0.05 ? "к обеду витрина почти не работает" : ""));
+  }
+  if(a.scenario){
+    out.push('<div class="note info" style="margin-top:12px"><span class="i">📈</span><div>'+
+      'Если подтянуть отстающие часы ('+a.scenario.hours.map(hh).join(", ")+
+      ') до вашей же медианы '+pct(a.scenario.target_rate,1)+' — это около <b>'+
+      money(a.scenario.money_per_month)+' в месяц</b>.'+
+      '<div class="assume">'+esc(a.scenario.assumption)+'</div></div></div>');
+  }
+  if(has(D.basket)){
+    out.push('<div style="font-size:12.5px;color:var(--muted);margin:12px 0 2px">Что реально берут вместе</div>');
+    D.basket.slice(0,4).forEach(function(b){
+      out.push(row(b.drink+" + "+b.food, "×"+b.lift, b.checks+" чеков"));
+    });
+  }
+  el("attachBox").innerHTML = out.join("");
+}
+
+/* ---------- молоко ---------- */
+function renderMilk(){
+  var m = D.milk||[];
+  if(!has(m)){
+    el("milkBox").innerHTML = '<div class="empty">В выгрузке нет разбивки по молоку: касса не передаёт модификатор.</div>';
+    return;
+  }
+  var max = Math.max.apply(null, m.map(function(x){ return x.share; }));
+  var out = m.map(function(x){
+    return '<div class="row"><div style="flex:1;min-width:0">'+
+      '<div class="nm">'+esc(x.milk)+'</div>'+
+      '<div class="meta">цена '+num(x.price)+' ₽ · сырьё '+one(x.cost)+' ₽ · фудкост '+pct(x.foodcost)+'</div>'+
+      '<div class="bar"><span style="width:'+Math.round(x.share/max*100)+'%"></span></div></div>'+
+      '<div class="val">'+num(x.margin)+' ₽<div class="meta" style="text-align:right;font-weight:400">'+
+      pct(x.share)+' чашек</div></div></div>';
+  });
+  var reg = m.filter(function(x){ return x.milk==="обычное"; })[0];
+  var alts = m.filter(function(x){ return x.milk!=="обычное"; });
+  if(reg && alts.length){
+    var worst = alts.reduce(function(a,b){ return a.margin<=b.margin?a:b; });
+    var diff = worst.margin - reg.margin;
+    out.push('<div class="note '+(diff<0?"warn":"ok")+'" style="margin-top:12px"><span class="i">'+
+      (diff<0?"⚠️":"✅")+'</span><div>'+
+      (diff<0
+        ? 'На '+esc(worst.milk)+' молоке вы зарабатываете на <b>'+num(-diff)+' ₽ меньше</b> с чашки, чем на обычном. Наценку стоит пересмотреть.'
+        : 'Наценка за альтернативное молоко покрывает разницу в закупке.')+
+      '</div></div>');
+  }
+  el("milkBox").innerHTML = out.join("");
+}
+
+/* ---------- загрузка и смена ---------- */
+function renderLoad(){
+  var L = D.load||{}, S = D.shift||{}, hours = L.hours||[];
+  if(!hours.length){
+    el("loadHint").textContent = "";
+    el("loadBox").innerHTML = '<div class="empty">Нет данных о часах продаж.</div>';
+    el("shiftBox").innerHTML = "";
+    return;
+  }
+  var cap = (L.capacity&&L.capacity.known) ? L.capacity.cups_per_hour : null;
+  el("loadHint").textContent = cap
+    ? "Чашек в час в среднем. Пунктир — ваш собственный повторяемый максимум ("+num(cap)+" чашек/час)."
+    : "Чашек в час в среднем.";
+  var tight = {};
+  (S.windows||[]).forEach(function(w){ for(var h=w[0]; h<w[1]; h++) tight[h]=1; });
+  var top = Math.max.apply(null, hours.map(function(h){ return h.avg_cups; }).concat(cap?[cap]:[]));
+  var bars = hours.map(function(h){
+    var pctH = top>0 ? Math.max(2, Math.round(h.avg_cups/top*100)) : 2;
+    return '<div class="hbar'+(tight[h.hour]?" tight":"")+'" title="'+hh(h.hour)+' — '+
+      one(h.avg_cups)+' чашек, '+one(h.avg_checks)+' чеков">'+
+      '<div class="b" style="height:'+pctH+'%"></div><div class="l">'+h.hour+'</div></div>';
+  }).join("");
+  var capLine = "";
+  if(cap && top>0){
+    capLine = '<div class="cap" style="bottom:'+Math.round(cap/top*100*(150-18)/150)+
+      'px"><span>потолок '+num(cap)+'</span></div>';
+  }
+  el("loadBox").innerHTML = '<div class="hours">'+bars+capLine+'</div>';
+
+  var out = [];
+  if(has(S.peaks)){
+    out.push('<div style="margin-top:14px">'+
+      row("Пик", S.peaks.map(function(p){ return hh(p.hour); }).join(" и "),
+          S.quietest? "тише всего в "+hh(S.quietest.hour):"")+'</div>');
+  }
+  if(has(S.windows)){
+    out.push(row("На пределе",
+      S.windows.map(function(w){ return hh(w[0])+"–"+hh(w[1]); }).join(" и "),
+      pct(S.tight_share)+" всех чеков дня"));
+  }
+  if(S.scenario){
+    out.push('<div class="note warn" style="margin-top:12px"><span class="i">👥</span><div>'+
+      'В эти часы вы упираетесь в потолок в <b>'+pct(S.scenario.clipped_share)+' дней</b>. '+
+      'Второй бариста дал бы примерно +'+one(S.scenario.extra_checks_per_day)+
+      ' чеков в день, около <b>'+money(S.scenario.money_per_month)+' в месяц</b>.'+
+      '<div class="assume">'+esc(S.scenario.assumption)+'</div></div></div>');
+  } else if(S.note){
+    out.push('<div class="note info" style="margin-top:12px"><span class="i">ℹ️</span><div>'+esc(S.note)+'</div></div>');
+  }
+  el("shiftBox").innerHTML = out.join("");
+}
+
+/* ---------- заявка ---------- */
+var URGENCY = {critical:["c-bad","горит"], soon:["c-warn","скоро"], plan:["c-flat","планово"], ok:["c-flat","есть"]};
+function renderSupply(){
+  var s = D.supply||{}, items = (s.items||[]).filter(function(i){ return i.packs>0; });
+  if(!items.length){
+    el("supplyHint").textContent = "";
+    el("supplyBox").innerHTML = '<div class="empty">Заказывать нечего: расход не посчитан или нет рецептов.</div>';
+    return;
+  }
+  el("supplyHint").textContent = "Расход посчитан по проданным чашкам и рецептуре, за "+
+    s.based_on_days+" "+plural(s.based_on_days,"день","дня","дней")+". Горизонт заявки — "+
+    s.horizon_days+" "+plural(s.horizon_days,"день","дня","дней")+".";
+  var h = '<div class="tbl-scroll"><table><thead><tr><th>Позиция</th><th class="num">Уходит в день</th>'+
+    '<th class="num">Остаток</th><th class="num">Хватит на</th><th class="num">Взять</th>'+
+    '<th class="num">Сумма</th></tr></thead><tbody>';
+  items.slice(0,18).forEach(function(i){
+    var u = URGENCY[i.urgency]||URGENCY.plan;
+    h += '<tr><td>'+esc(i.name)+' <span class="chip '+u[0]+'">'+u[1]+'</span></td>'+
+      '<td class="num">'+one(i.per_day)+' '+esc(i.unit)+'</td>'+
+      '<td class="num">'+(isNum(i.left)? one(i.left)+" "+esc(i.unit) : "—")+'</td>'+
+      '<td class="num">'+(isNum(i.days_left)? one(i.days_left)+" дн." : "—")+'</td>'+
+      '<td class="num"><b>'+num(i.packs)+'</b> '+esc(i.pack_name)+'</td>'+
+      '<td class="num">'+(i.price_known? money(i.price) : "—")+'</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  if(isNum(s.total_price) && s.total_price>0){
+    h += '<div style="margin-top:10px;font-size:13px">Ориентировочно <b>'+money(s.total_price)+'</b>.</div>';
+  }
+  if(s.note){ h += '<div class="assume" style="margin-top:10px">'+esc(s.note)+'</div>'; }
+  el("supplyBox").innerHTML = h;
+  el("supplyFooter").style.display="flex";
+  var b = el("orderBtn"), m = el("orderMsg");
+  b.onclick = function(){
+    b.disabled = true; m.textContent = "готовлю…";
+    apiPost("/api/order/send", {})
+      .then(function(r){
+        if(!r.ok){ m.textContent = r.reason||"нечего отправлять"; b.disabled=false; return; }
+        m.textContent = r.sent ? "отправлено поставщику"
+          : "заявка готова. Чтобы бот отправлял её сам, впишите SUPPLIER_CHAT_ID в .env";
+      })
+      .catch(function(e){ m.textContent="не удалось: "+e.message; b.disabled=false; });
+  };
+}
+
+/* ---------- напитки, категории, списания ---------- */
+function renderDrinks(){
+  var d = D.drinks||[];
+  if(!has(d)){ el("drinksBox").innerHTML='<div class="empty">Напитков в данных нет.</div>'; return; }
+  var parts = [];
+  var sizes = D.sizes||[];
+  if(has(sizes)) parts.push("размеры: "+sizes.map(function(s){ return s.key+" "+pct(s.share); }).join(", "));
+  var ic = D.iced||{};
+  if(isNum(ic.share)) parts.push("холодные "+pct(ic.share));
+  el("drinksHint").textContent = parts.join(" · ");
+  var max = Math.max.apply(null, d.map(function(x){ return x.qty; }));
+  el("drinksBox").innerHTML = d.slice(0,8).map(function(x){
+    return '<div class="row"><div style="flex:1;min-width:0"><div class="nm">'+esc(x.name)+'</div>'+
+      '<div class="bar"><span style="width:'+Math.round(x.qty/max*100)+'%"></span></div></div>'+
+      '<div class="val">'+pct(x.share)+'</div></div>';
+  }).join("");
+}
+
+function renderCats(){
+  var c = D.by_category||[];
+  if(!has(c)){ el("catBox").innerHTML='<div class="empty">Нет данных.</div>'; return; }
+  el("catHint").textContent = "За "+D.date+".";
+  el("catBox").innerHTML = c.map(function(x){
+    return row(x.cat, pct(x.share), money(x.rev));
+  }).join("");
+}
+
+function renderWaste(){
+  var w = D.waste||{}, mw = D.milk_waste||{}, out=[];
+  if(has(w.case)){
+    out.push('<div style="font-size:12.5px;color:var(--muted);margin-bottom:2px">Витрина, по ценникам</div>');
+    w.case.slice(0,5).forEach(function(i){ out.push(row(i.name, money(i.amount), one(i.qty)+" "+i.unit)); });
+  }
+  if(has(w.raw)){
+    out.push('<div style="font-size:12.5px;color:var(--muted);margin:10px 0 2px">Сырьё, по себестоимости</div>');
+    w.raw.slice(0,5).forEach(function(i){ out.push(row(i.name, money(i.amount), one(i.qty)+" "+i.unit)); });
+  }
+  if(!out.length) out.push('<div class="empty">Списаний за день нет.</div>');
+  el("wasteHint").textContent = isNum(w.total)
+    ? "Всего "+money(w.total)+" ("+(w.pct||0).toFixed(1)+"% выручки дня)" : "";
+  if(mw.tracked){
+    out.push('<div class="note warn" style="margin-top:10px"><span class="i">🥛</span><div>'+
+      'Вылитого молока '+one(mw.litres_per_day)+' л в день — около <b>'+
+      money(mw.money_per_month)+' в месяц</b>.</div></div>');
+  } else if(mw.note){
+    out.push('<div class="assume" style="margin-top:10px">'+esc(mw.note)+'</div>');
+  }
+  el("wasteBox").innerHTML = out.join("");
+}
+
+function renderWeek(){
+  var w = D.week||[];
+  if(!has(w)){ el("weekBox").innerHTML='<div class="empty">Нет данных.</div>'; return; }
+  var names=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  var max = Math.max.apply(null, w.map(function(x){ return x.revenue||0; })) || 1;
+  el("weekBox").innerHTML = '<div class="week">'+w.map(function(x,i){
+    return '<div class="wbar'+(i===w.length-1?" last":"")+'" title="'+x.date+'">'+
+      '<div class="vv">'+Math.round((x.revenue||0)/1000)+'к</div>'+
+      '<div class="b" style="height:'+Math.max(2,Math.round((x.revenue||0)/max*100))+'%"></div>'+
+      '<div class="l">'+names[x.dow]+'</div></div>';
+  }).join("")+'</div>';
+}
+
+function renderPay(){
+  var total = (D.cash||0)+(D.card||0);
+  el("payHint").textContent = "За "+D.date+".";
+  var out = [
+    row("Безнал", money(D.card), total? pct(D.card/total) : ""),
+    row("Наличные", money(D.cash), total? pct(D.cash/total) : "")
+  ];
+  el("payBox").innerHTML = out.join("");
+  var m = D.maintenance||[];
+  if(has(m)){
+    el("maintBox").innerHTML = '<div style="font-size:12.5px;color:var(--muted);margin:12px 0 2px">'+
+      'Обслуживание: пора сделать</div>'+ m.slice(0,4).map(function(x){
+        return row(x.task, isNum(x.days_since)? x.days_since+" дн. назад" : "не отмечали",
+          x.note||"");
+      }).join("");
+  } else {
+    el("maintBox").innerHTML = "";
+  }
+}
+
+/* ---------- вопрос ---------- */
+function setupAsk(){
+  var inp = el("askInput"), btn = el("askBtn"), out = el("askAnswer");
+  function ask(){
+    var q = inp.value.trim(); if(!q) return;
+    btn.disabled = true; out.style.display="block"; out.textContent="Считаю…";
+    apiGet("/api/ask?q="+encodeURIComponent(q))
+      .then(function(r){ out.textContent = r.answer || "Пустой ответ."; })
+      .catch(function(e){ out.textContent = "Не удалось получить ответ: "+e.message; })
+      .then(function(){ btn.disabled=false; });
+  }
+  btn.onclick = ask;
+  inp.onkeydown = function(e){ if(e.key==="Enter") ask(); };
+}
+
+boot();
+</script>
+</body>
+</html>

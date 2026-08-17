@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+venv/
+.venv/
+env/
+
+# Тесты и кэши
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Секреты и локальные данные
+.env
+.env.local
+*.db
+*.db-wal
+*.db-shm
+*.log
+data/
+out/*.png
+
+# Артефакты запуска
+report*.html
+out/*.html
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Локальные настройки агентов
+.claude/
