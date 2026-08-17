@@ -8,6 +8,7 @@
    а не бодрый ноль; если цена неизвестна, маржа не «100%», а «неизвестна».
 3. **Регрессии** — каждый пункт здесь когда-то был настоящим дефектом.
 """
+
 import datetime as dt
 import os
 import sys
@@ -78,8 +79,10 @@ def _cleanup():
     conn.execute("DELETE FROM case_order_override")
     conn.execute("DELETE FROM kv WHERE key='alert_last'")
     for row in _BASELINE.get("ingredients", []):
-        conn.execute("UPDATE ingredients SET pack_price=?, pack_qty=?, price_src=? WHERE name=?",
-                     (row["pack_price"], row["pack_qty"], row["price_src"], row["name"]))
+        conn.execute(
+            "UPDATE ingredients SET pack_price=?, pack_qty=?, price_src=? WHERE name=?",
+            (row["pack_price"], row["pack_qty"], row["price_src"], row["name"]),
+        )
     conn.execute("UPDATE maintenance SET last_done=NULL")
     conn.commit()
     conn.close()
@@ -111,8 +114,14 @@ def _drop_caches():
 
 def _wipe(conn):
     """Пустая база для синтетического сценария."""
-    for t in ("receipt_items", "receipts", "menu_items", "waste",
-              "case_order_override", "stock_counts"):
+    for t in (
+        "receipt_items",
+        "receipts",
+        "menu_items",
+        "waste",
+        "case_order_override",
+        "stock_counts",
+    ):
         conn.execute(f"DELETE FROM {t}")
     conn.execute("DELETE FROM ingredients WHERE category IN ('case','goods')")
     conn.execute("DELETE FROM recipes WHERE src='auto'")
@@ -128,7 +137,8 @@ def _receipt(conn, when, items, payment="card", channel=None, barista=None, gues
     _RID[0] += 1
     cur = conn.execute(
         "INSERT INTO receipts(ts,payment,ext_id,channel,barista,guest) VALUES(?,?,?,?,?,?)",
-        (when.isoformat(), payment, f"t{_RID[0]}", channel, barista, guest))
+        (when.isoformat(), payment, f"t{_RID[0]}", channel, barista, guest),
+    )
     rid = cur.lastrowid
     for name, qty, price in items:
         p = catalog.resolve(conn, name)
@@ -137,27 +147,43 @@ def _receipt(conn, when, items, payment="card", channel=None, barista=None, gues
             "INSERT INTO receipt_items"
             "(receipt_id,name,base,category,kind,size,volume_ml,milk,mods,iced,qty,price)"
             " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-            (rid, name, p["base"], p["category"], p["kind"], p["size"], p["volume_ml"],
-             p["milk"], p["mods"], p["iced"], qty, price))
+            (
+                rid,
+                name,
+                p["base"],
+                p["category"],
+                p["kind"],
+                p["size"],
+                p["volume_ml"],
+                p["milk"],
+                p["mods"],
+                p["iced"],
+                qty,
+                price,
+            ),
+        )
     return rid
 
 
 # ======================================================================
 # Разбор позиции чека
 # ======================================================================
-@pytest.mark.parametrize("name,base,kind,size,milk,iced", [
-    ("Латте 350 мл",                 "Латте",         "drink", "M", "обычное",      0),
-    ("Латте 450 на овсяном",         "Латте",         "drink", "L", "овсяное",      0),
-    ("Латте 0,25",                   "Латте",         "drink", "S", "обычное",      0),
-    ("Айс американо 400",            "Американо",     "drink", "L", None,           1),
-    ("Капучино M, безлактозное",     "Капучино",      "drink", "M", "безлактозное", 0),
-    ("Флэт уайт",                    "Флэт уайт",     "drink", None, "обычное",     0),
-    ("Латте макиато 350",            "Латте макиато", "drink", "M", "обычное",      0),
-    ("Колд брю 300",                 "Колд брю",      "drink", "M", None,           1),
-    ("Чай облепиховый 400",          "Чай",           "drink", "L", None,           0),
-    ("Круассан миндальный",  "Круассан миндальный",   "food",  None, None,          0),
-    ("Сырники со сметаной",  "Сырники со сметаной",   "food",  None, None,          0),
-])
+@pytest.mark.parametrize(
+    "name,base,kind,size,milk,iced",
+    [
+        ("Латте 350 мл", "Латте", "drink", "M", "обычное", 0),
+        ("Латте 450 на овсяном", "Латте", "drink", "L", "овсяное", 0),
+        ("Латте 0,25", "Латте", "drink", "S", "обычное", 0),
+        ("Айс американо 400", "Американо", "drink", "L", None, 1),
+        ("Капучино M, безлактозное", "Капучино", "drink", "M", "безлактозное", 0),
+        ("Флэт уайт", "Флэт уайт", "drink", None, "обычное", 0),
+        ("Латте макиато 350", "Латте макиато", "drink", "M", "обычное", 0),
+        ("Колд брю 300", "Колд брю", "drink", "M", None, 1),
+        ("Чай облепиховый 400", "Чай", "drink", "L", None, 0),
+        ("Круассан миндальный", "Круассан миндальный", "food", None, None, 0),
+        ("Сырники со сметаной", "Сырники со сметаной", "food", None, None, 0),
+    ],
+)
 def test_menu_parsing(name, base, kind, size, milk, iced):
     p = menu.parse(name)
     assert p["base"] == base
@@ -259,12 +285,14 @@ def test_unknown_purchase_price_gives_no_margin_not_hundred_percent():
     _wipe(conn)
     day = dt.datetime(2026, 7, 1, 9, 0)
     for i in range(30):
-        _receipt(conn, day + dt.timedelta(days=i % 10, hours=i % 8),
-                 [("Круассан с лососем", 1, 300)])
+        _receipt(
+            conn, day + dt.timedelta(days=i % 10, hours=i % 8), [("Круассан с лососем", 1, 300)]
+        )
     conn.commit()
     # позиция заведена как закупаемая, но цену владелец не называл
-    row = conn.execute("SELECT price_src FROM ingredients "
-                       "WHERE name='Круассан с лососем'").fetchone()
+    row = conn.execute(
+        "SELECT price_src FROM ingredients WHERE name='Круассан с лососем'"
+    ).fetchone()
     econ = costing.item_economics(conn, 30, dt.date(2026, 7, 10))
     item = next(i for i in econ if i["name"] == "Круассан с лососем")
     totals = costing.totals(conn, 30, dt.date(2026, 7, 10))
@@ -286,8 +314,9 @@ def test_default_prices_are_marked_as_estimates():
 def test_owner_price_stops_being_an_estimate():
     conn = db.get_conn()
     costing.set_price(conn, "Зерно кофе", 2000)
-    res = conn.execute("SELECT pack_price, price_src FROM ingredients "
-                       "WHERE name='Зерно кофе'").fetchone()
+    res = conn.execute(
+        "SELECT pack_price, price_src FROM ingredients WHERE name='Зерно кофе'"
+    ).fetchone()
     conn.close()
     assert res["pack_price"] == 2000 and res["price_src"] == costing.PRICE_OWNER
 
@@ -351,6 +380,7 @@ def test_order_exceeds_mean_demand():
 
 def test_service_level_requires_a_buffer():
     from coffeeos import economics as ec
+
     sl = ec.service_level()
     assert ec.MIN_SERVICE <= sl <= ec.MAX_SERVICE
     assert sl > 0.5, "берём с запасом — выше медианы спроса"
@@ -360,6 +390,7 @@ def test_service_level_requires_a_buffer():
 def test_service_level_is_configurable():
     """Уровень сервиса читается из настройки, а не застывает при импорте модуля."""
     from coffeeos import economics as ec
+
     old = config.CASE_SERVICE_LEVEL
     try:
         config.CASE_SERVICE_LEVEL = 0.85
@@ -374,7 +405,7 @@ def test_sellout_detected_from_receipts_only():
     _wipe(conn)
     for d in range(28):
         day = dt.date(2026, 7, 1) + dt.timedelta(days=d)
-        short = (d % 4 == 0)     # сырники кончаются в полдень каждый четвёртый день
+        short = d % 4 == 0  # сырники кончаются в полдень каждый четвёртый день
         for hour in range(8, 20):
             for _ in range(5):
                 items = [("Круассан классический", 1, 180)]
@@ -401,8 +432,11 @@ def test_morning_item_is_not_a_false_sellout():
         for hour in range(8, 20):
             for _ in range(6):
                 items = [("Овсяная каша", 1, 220)] if hour < 11 else []
-                _receipt(conn, dt.datetime(day.year, day.month, day.day, hour, 0),
-                         items or [("Американо 250", 1, 150)])
+                _receipt(
+                    conn,
+                    dt.datetime(day.year, day.month, day.day, hour, 0),
+                    items or [("Американо 250", 1, 150)],
+                )
     conn.commit()
     so = demand.sellout_days(conn, 30, dt.date(2026, 7, 28))
     lost = demand.lost_sales_report(conn, 30, dt.date(2026, 7, 28))
@@ -442,7 +476,7 @@ def test_new_item_is_not_crushed_by_history_length():
         for i in range(40):
             when = dt.datetime(day.year, day.month, day.day, 8 + i % 10, 0)
             items = [("Круассан классический", 1, 180)]
-            if d >= 38:                        # новинка живёт всего два дня
+            if d >= 38:  # новинка живёт всего два дня
                 items.append(("Брауни", 1, 230))
             _receipt(conn, when, items)
     conn.commit()
@@ -458,9 +492,11 @@ def test_waste_entry_overrides_sellout_guess():
     _wipe(conn)
     for d in range(14):
         day = dt.date(2026, 7, 1) + dt.timedelta(days=d)
-        conn.execute("INSERT INTO waste(date,name,qty,unit,amount,kind,src) "
-                     "VALUES(?,?,?,'шт',?,'food','user')",
-                     (day.isoformat(), "Синнабон", 5, 1300))
+        conn.execute(
+            "INSERT INTO waste(date,name,qty,unit,amount,kind,src) "
+            "VALUES(?,?,?,'шт',?,'food','user')",
+            (day.isoformat(), "Синнабон", 5, 1300),
+        )
         for hour in range(8, 20):
             for _ in range(5):
                 items = [("Синнабон", 1, 260)] if hour < 12 else [("Латте 350", 1, 260)]
@@ -477,10 +513,13 @@ def test_single_leftover_does_not_erase_sellout():
     _wipe(conn)
     for d in range(28):
         day = dt.date(2026, 7, 1) + dt.timedelta(days=d)
-        short = (d % 3 == 0)
+        short = d % 3 == 0
         if short:
-            conn.execute("INSERT INTO waste(date,name,qty,unit,amount,kind,src) "
-                         "VALUES(?,'Синнабон',1,'шт',260,'food','user')", (day.isoformat(),))
+            conn.execute(
+                "INSERT INTO waste(date,name,qty,unit,amount,kind,src) "
+                "VALUES(?,'Синнабон',1,'шт',260,'food','user')",
+                (day.isoformat(),),
+            )
         for hour in range(8, 20):
             for _ in range(6):
                 items = [("Латте 350", 1, 260)]
@@ -505,9 +544,10 @@ def test_returns_do_not_hide_sellouts():
                 if hour < 12 or d % 3:
                     items.append(("Синнабон", 1, 260))
                 _receipt(conn, dt.datetime(day.year, day.month, day.day, hour, 0), items)
-        if d % 3 == 0:      # поздний возврат в день распродажи
-            _receipt(conn, dt.datetime(day.year, day.month, day.day, 19, 40),
-                     [("Синнабон", -1, 260)])
+        if d % 3 == 0:  # поздний возврат в день распродажи
+            _receipt(
+                conn, dt.datetime(day.year, day.month, day.day, 19, 40), [("Синнабон", -1, 260)]
+            )
     conn.commit()
     so = demand.sellout_days(conn, 30, dt.date(2026, 7, 28))
     conn.close()
@@ -522,8 +562,11 @@ def test_returns_do_not_crash_the_reports():
         day = dt.date(2026, 7, 1) + dt.timedelta(days=d)
         for i in range(6):
             qty = -3 if (day.weekday() == 2 and i < 4) else 1
-            _receipt(conn, dt.datetime(day.year, day.month, day.day, 9 + i, 0),
-                     [("Чизкейк Нью-Йорк", qty, 320)])
+            _receipt(
+                conn,
+                dt.datetime(day.year, day.month, day.day, 9 + i, 0),
+                [("Чизкейк Нью-Йорк", qty, 320)],
+            )
     conn.commit()
     order = demand.case_order(conn, dt.date(2026, 7, 22))
     digest = orchestrator.data_digest(conn)
@@ -555,8 +598,10 @@ def test_order_survives_without_any_waste_input():
 
 def test_case_order_never_offers_service_items():
     conn = db.get_conn()
-    conn.execute("INSERT OR REPLACE INTO menu_items(name,category,kind,stocked) "
-                 "VALUES('Пакет-майка','Прочее','food',1)")
+    conn.execute(
+        "INSERT OR REPLACE INTO menu_items(name,category,kind,stocked) "
+        "VALUES('Пакет-майка','Прочее','food',1)"
+    )
     conn.commit()
     _drop_caches()
     order = demand.case_order(conn)
@@ -600,8 +645,12 @@ def test_consumption_matches_recipe_exactly():
     _wipe(conn)
     day = dt.date(2026, 7, 1)
     for i in range(100):
-        _receipt(conn, dt.datetime(day.year, day.month, day.day, 8 + i % 10, i % 60),
-                 [("Латте 350", 1, 260)], channel="takeaway")
+        _receipt(
+            conn,
+            dt.datetime(day.year, day.month, day.day, 8 + i % 10, i % 60),
+            [("Латте 350", 1, 260)],
+            channel="takeaway",
+        )
     conn.commit()
     cons = supply.consumption(conn, 7, day)
     conn.close()
@@ -618,8 +667,11 @@ def test_consumption_follows_the_milk_in_the_receipt():
     _wipe(conn)
     day = dt.date(2026, 7, 1)
     for i in range(50):
-        _receipt(conn, dt.datetime(day.year, day.month, day.day, 9, i % 60),
-                 [("Латте 350 на овсяном", 1, 320)])
+        _receipt(
+            conn,
+            dt.datetime(day.year, day.month, day.day, 9, i % 60),
+            [("Латте 350 на овсяном", 1, 320)],
+        )
     conn.commit()
     cons = supply.consumption(conn, 7, day)["items"]
     conn.close()
@@ -634,8 +686,11 @@ def test_spilled_milk_counts_as_consumption():
     day = dt.date(2026, 7, 1)
     for i in range(10):
         _receipt(conn, dt.datetime(day.year, day.month, day.day, 9, i), [("Латте 350", 1, 260)])
-    conn.execute("INSERT INTO waste(date,name,qty,unit,amount,kind,src) "
-                 "VALUES(?,'Молоко обычное',2,'л',190,'milk','user')", (day.isoformat(),))
+    conn.execute(
+        "INSERT INTO waste(date,name,qty,unit,amount,kind,src) "
+        "VALUES(?,'Молоко обычное',2,'л',190,'milk','user')",
+        (day.isoformat(),),
+    )
     conn.commit()
     cons = supply.consumption(conn, 7, day)["items"]
     conn.close()
@@ -755,8 +810,11 @@ def test_even_flow_gets_no_second_barista():
         day = dt.date(2026, 7, 1) + dt.timedelta(days=d)
         for hour in range(8, 20):
             for i in range(4):
-                _receipt(conn, dt.datetime(day.year, day.month, day.day, hour, i * 10),
-                         [("Латте 350", 1, 260)])
+                _receipt(
+                    conn,
+                    dt.datetime(day.year, day.month, day.day, hour, i * 10),
+                    [("Латте 350", 1, 260)],
+                )
     conn.commit()
     sp = staffing.shift_plan(conn, 30, dt.date(2026, 7, 30))
     conn.close()
@@ -784,8 +842,9 @@ def test_attach_rate_ignores_modifier_lines():
     day = dt.date(2026, 7, 1)
     for d in range(20):
         for i in range(30):
-            when = dt.datetime(day.year, day.month, day.day, 8 + i % 10, i % 60) \
-                + dt.timedelta(days=d)
+            when = dt.datetime(day.year, day.month, day.day, 8 + i % 10, i % 60) + dt.timedelta(
+                days=d
+            )
             items = [("Латте 350", 1, 260), ("Овсяное молоко", 1, 60)]
             if i < 6:
                 items.append(("Круассан классический", 1, 180))
@@ -793,8 +852,9 @@ def test_attach_rate_ignores_modifier_lines():
     conn.commit()
     a = analytics.attach_rate(conn, 30, day + dt.timedelta(days=19))
     conn.close()
-    assert a["rate"] == pytest.approx(6 / 30, abs=0.02), \
+    assert a["rate"] == pytest.approx(6 / 30, abs=0.02), (
         "модификатор посчитан как еда — attach-rate завышен"
+    )
 
 
 def test_attach_scenario_is_modest_and_labelled():
@@ -803,8 +863,9 @@ def test_attach_scenario_is_modest_and_labelled():
     a = analytics.attach_rate(conn)
     conn.close()
     if a["scenario"]:
-        assert a["scenario"]["target_rate"] <= a["best_hour"]["rate"], \
+        assert a["scenario"]["target_rate"] <= a["best_hour"]["rate"], (
             "цель не должна быть равна лучшему часу — это недоказуемая цифра"
+        )
         assert a["scenario"]["assumption"]
 
 
@@ -815,7 +876,7 @@ def test_guests_and_barista_report_absence_honestly():
     conn.commit()
     g = analytics.guests(conn)
     conn.close()
-    _reseed()          # число чеков не изменилось, автовосстановление не сработает
+    _reseed()  # число чеков не изменилось, автовосстановление не сработает
     assert g["available"] is False and g["note"]
 
 
@@ -847,8 +908,7 @@ def test_iced_share_follows_the_season():
 def test_category_shares_stay_sane_with_big_return():
     conn = db.get_conn()
     last = analytics.last_day_with_data(conn)
-    _receipt(conn, dt.datetime(last.year, last.month, last.day, 12, 0),
-             [("Латте 350", -50, 260)])
+    _receipt(conn, dt.datetime(last.year, last.month, last.day, 12, 0), [("Латте 350", -50, 260)])
     conn.commit()
     cats = analytics.revenue_by_category(conn, last)
     conn.close()
@@ -890,7 +950,7 @@ def test_case_waste_is_priced_by_the_price_tag():
 def test_milk_waste_is_priced_by_cost_not_by_menu():
     """Вылитое молоко — это расход по себестоимости, а не непроданная выручка."""
     conn = db.get_conn()
-    costing.set_price(conn, "Молоко обычное", 100)     # 100 ₽ за литр
+    costing.set_price(conn, "Молоко обычное", 100)  # 100 ₽ за литр
     last = analytics.last_day_with_data(conn)
     res = catalog.add_waste(conn, "молоко обычное", 1.5, last)
     conn.close()
@@ -912,9 +972,9 @@ def test_waste_report_separates_case_and_raw():
 
 def test_waste_rejects_garbage():
     conn = db.get_conn()
-    assert catalog.add_waste(conn, "чт", 5) is None            # слишком короткое имя
-    assert catalog.add_waste(conn, "сырники", 0) is None      # ноль
-    assert catalog.add_waste(conn, "сырники", -3) is None     # минус
+    assert catalog.add_waste(conn, "чт", 5) is None  # слишком короткое имя
+    assert catalog.add_waste(conn, "сырники", 0) is None  # ноль
+    assert catalog.add_waste(conn, "сырники", -3) is None  # минус
     assert catalog.add_waste(conn, "сырники", 99999) is None  # неправдоподобно
     assert catalog.add_waste(conn, "нетакоготовара", 5) is None
     conn.close()
@@ -933,18 +993,21 @@ def test_milk_waste_absence_is_reported_as_blind_spot():
 # ======================================================================
 # Оркестратор: маршрутизация и ввод
 # ======================================================================
-@pytest.mark.parametrize("text,intent", [
-    ("что заказать на завтра", "case"),
-    ("какая маржа", "margin"),
-    ("на сколько хватит зерна", "supply"),
-    ("еда к кофе", "attach"),
-    ("сколько недопродали", "lost"),
-    ("сверка кассы", "cash"),
-    ("нужен ли второй бариста", "shift"),
-    ("списания", "waste"),
-    ("что пьют", "drinks"),
-    ("выручка по категориям", "revenue"),
-])
+@pytest.mark.parametrize(
+    "text,intent",
+    [
+        ("что заказать на завтра", "case"),
+        ("какая маржа", "margin"),
+        ("на сколько хватит зерна", "supply"),
+        ("еда к кофе", "attach"),
+        ("сколько недопродали", "lost"),
+        ("сверка кассы", "cash"),
+        ("нужен ли второй бариста", "shift"),
+        ("списания", "waste"),
+        ("что пьют", "drinks"),
+        ("выручка по категориям", "revenue"),
+    ],
+)
 def test_routing_does_not_confuse_topics(text, intent):
     assert orchestrator.route(text) == intent
 
@@ -991,8 +1054,9 @@ def test_web_is_read_only():
 def test_price_command_updates_margin():
     conn = db.get_conn()
     txt = orchestrator.answer(conn, "цена зерно 2500")
-    row = conn.execute("SELECT pack_price, price_src FROM ingredients "
-                       "WHERE name='Зерно кофе'").fetchone()
+    row = conn.execute(
+        "SELECT pack_price, price_src FROM ingredients WHERE name='Зерно кофе'"
+    ).fetchone()
     conn.close()
     assert "✅" in txt and row["pack_price"] == 2500 and row["price_src"] == "owner"
 
@@ -1038,14 +1102,17 @@ def test_empty_database_raises_alarm_not_cheerful_zero():
     assert "нет данных" in st.lower()
 
 
-@pytest.mark.parametrize("question,item", [
-    ("какая маржа у рафа", "Раф"),
-    ("фудкост чая", "Чай"),
-    ("сколько стоит какао", "Какао"),
-    ("сколько зарабатываем на латте", "Латте"),
-    ("маржа круассан миндальный", "Круассан миндальный"),
-    ("какая маржа у капучино", "Капучино"),
-])
+@pytest.mark.parametrize(
+    "question,item",
+    [
+        ("какая маржа у рафа", "Раф"),
+        ("фудкост чая", "Чай"),
+        ("сколько стоит какао", "Какао"),
+        ("сколько зарабатываем на латте", "Латте"),
+        ("маржа круассан миндальный", "Круассан миндальный"),
+        ("какая маржа у капучино", "Капучино"),
+    ],
+)
 def test_question_about_one_item_gets_that_item(question, item):
     """«Какая маржа у рафа» — это вопрос про раф, а не про всё меню.
 
@@ -1059,12 +1126,15 @@ def test_question_about_one_item_gets_that_item(question, item):
     assert "маржа" in txt and "фудкост" in txt
 
 
-@pytest.mark.parametrize("question", [
-    "какой график",          # «раф» внутри «график»
-    "какая маржа",           # «какая» похоже на «какао»
-    "во сколько пик",
-    "сколько недопродали",
-])
+@pytest.mark.parametrize(
+    "question",
+    [
+        "какой график",  # «раф» внутри «график»
+        "какая маржа",  # «какая» похоже на «какао»
+        "во сколько пик",
+        "сколько недопродали",
+    ],
+)
 def test_item_matching_has_no_false_positives(question):
     """Слово названия не должно находиться внутри чужого слова."""
     conn = db.get_conn()
@@ -1077,8 +1147,11 @@ def test_item_answer_admits_unknown_purchase_price():
     conn = db.get_conn()
     _wipe(conn)
     for i in range(30):
-        _receipt(conn, dt.datetime(2026, 7, 1, 9, 0) + dt.timedelta(days=i % 10, hours=i % 8),
-                 [("Круассан с лососем", 1, 300)])
+        _receipt(
+            conn,
+            dt.datetime(2026, 7, 1, 9, 0) + dt.timedelta(days=i % 10, hours=i % 8),
+            [("Круассан с лососем", 1, 300)],
+        )
     conn.commit()
     txt = orchestrator.plain(orchestrator._item_money_answer(conn, "Круассан с лососем"))
     conn.close()
@@ -1087,11 +1160,13 @@ def test_item_answer_admits_unknown_purchase_price():
 
 def test_local_analytics_answers_without_ai():
     conn = db.get_conn()
-    for q in ("в какой день недели больше всего выручки?",
-              "во сколько пик продаж?",
-              "что продаётся лучше всего?",
-              "какой средний чек за 2 недели?",
-              "как дела?"):
+    for q in (
+        "в какой день недели больше всего выручки?",
+        "во сколько пик продаж?",
+        "что продаётся лучше всего?",
+        "какой средний чек за 2 недели?",
+        "как дела?",
+    ):
         a = orchestrator.local_analytics(conn, q)
         assert a, f"нет офлайн-ответа на «{q}»"
     conn.close()
@@ -1101,8 +1176,14 @@ def test_digest_has_coffee_specific_numbers():
     conn = db.get_conn()
     txt = orchestrator._digest_text(conn)
     conn.close()
-    for needle in ("Фудкост", "Attach-rate", "Молоко", "Расход сырья",
-                   "Пропускная способность", "Напитки за период"):
+    for needle in (
+        "Фудкост",
+        "Attach-rate",
+        "Молоко",
+        "Расход сырья",
+        "Пропускная способность",
+        "Напитки за период",
+    ):
         assert needle in txt, f"в срезе для ИИ нет раздела «{needle}»"
 
 
@@ -1114,11 +1195,14 @@ def test_zero_price_position_does_not_break_the_milk_report():
     conn = db.get_conn()
     last = analytics.last_day_with_data(conn)
     for i in range(6):
-        _receipt(conn, dt.datetime(last.year, last.month, last.day, 9, i),
-                 [("Латте 350 на овсяном", 1, 0)])
+        _receipt(
+            conn,
+            dt.datetime(last.year, last.month, last.day, 9, i),
+            [("Латте 350 на овсяном", 1, 0)],
+        )
     conn.commit()
     _drop_caches()
-    txt = orchestrator.answer_milk(conn)          # раньше падал на None * 100
+    txt = orchestrator.answer_milk(conn)  # раньше падал на None * 100
     conn.close()
     _reseed()
     assert "молоко" in txt.lower()
@@ -1138,7 +1222,8 @@ def test_margin_revenue_matches_the_till():
     real = conn.execute(
         "SELECT SUM(i.qty*i.price) r FROM receipts rr JOIN receipt_items i "
         "ON i.receipt_id=rr.id WHERE substr(rr.ts,1,10) BETWEEN ? AND ?",
-        (start.isoformat(), last.isoformat())).fetchone()["r"]
+        (start.isoformat(), last.isoformat()),
+    ).fetchone()["r"]
     t = costing.totals(conn)
     conn.close()
     assert abs(t["revenue"] - real) <= 1, "выручка раздела не совпала с кассовой"
@@ -1171,12 +1256,15 @@ def test_unambiguous_write_off_still_works():
     assert res and res.get("name") == "Круассан миндальный"
 
 
-@pytest.mark.parametrize("phrase,expect", [
-    ("калибровку", "Калибровка"),
-    ("промывку групп", "Промывка"),
-    ("замену картриджа", "Замена картриджа"),
-    ("чистку кофемолки", "Чистка кофемолки"),
-])
+@pytest.mark.parametrize(
+    "phrase,expect",
+    [
+        ("калибровку", "Калибровка"),
+        ("промывку групп", "Промывка"),
+        ("замену картриджа", "Замена картриджа"),
+        ("чистку кофемолки", "Чистка кофемолки"),
+    ],
+)
 def test_maintenance_understands_word_endings(phrase, expect):
     """«Сделал калибровку» — это «Калибровка помола» из регламента."""
     conn = db.get_conn()
@@ -1227,6 +1315,7 @@ def test_busy_database_gets_a_human_explanation():
     import sqlite3
 
     from coffeeos import bot
+
     busy = bot._error_text(sqlite3.OperationalError("database is locked"))
     broken = bot._error_text(sqlite3.DatabaseError("file is not a database"))
     other = bot._error_text(ValueError("что угодно"))
@@ -1238,6 +1327,7 @@ def test_busy_database_gets_a_human_explanation():
 def test_short_writes_from_several_connections_do_not_collide():
     """Бот, автозагрузка и сайт пишут одновременно — это штатный режим."""
     import threading
+
     errors = []
 
     def writer(tag):
@@ -1246,7 +1336,7 @@ def test_short_writes_from_several_connections_do_not_collide():
             for i in range(50):
                 c.execute("INSERT INTO kv(key,value) VALUES(?,?)", (f"cc-{tag}-{i}", "x"))
                 c.commit()
-        except Exception as e:                      # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             errors.append(f"{type(e).__name__}: {e}")
         finally:
             c.close()
@@ -1274,20 +1364,27 @@ def test_long_answers_fit_into_a_telegram_message():
     conn = db.get_conn()
     for i in range(150):
         name = f"Десерт с довольно длинным названием №{i}"
-        conn.execute("INSERT OR IGNORE INTO menu_items(name,category,kind,stocked) "
-                     "VALUES(?,'Витрина','food',1)", (name,))
-        conn.execute("INSERT OR IGNORE INTO ingredients"
-                     "(name,unit,pack_qty,pack_price,pack_name,category,lead_days,"
-                     "min_packs,price_src) VALUES(?,'pcs',1,0,'шт','case',1,0,'unknown')",
-                     (name,))
+        conn.execute(
+            "INSERT OR IGNORE INTO menu_items(name,category,kind,stocked) "
+            "VALUES(?,'Витрина','food',1)",
+            (name,),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO ingredients"
+            "(name,unit,pack_qty,pack_price,pack_name,category,lead_days,"
+            "min_packs,price_src) VALUES(?,'pcs',1,0,'шт','case',1,0,'unknown')",
+            (name,),
+        )
     conn.commit()
     _drop_caches()
     try:
-        for label, fn in (("каталог", orchestrator._catalog_text),
-                          ("цены", orchestrator._prices_text),
-                          ("заявка", orchestrator.answer_supply),
-                          ("витрина", orchestrator.answer_case),
-                          ("маржа", orchestrator.answer_margin)):
+        for label, fn in (
+            ("каталог", orchestrator._catalog_text),
+            ("цены", orchestrator._prices_text),
+            ("заявка", orchestrator.answer_supply),
+            ("витрина", orchestrator.answer_case),
+            ("маржа", orchestrator.answer_margin),
+        ):
             txt = fn(conn)
             assert len(txt) <= 4096, f"«{label}»: {len(txt)} символов — Telegram отклонит"
     finally:
@@ -1305,10 +1402,13 @@ def test_placeholder_modifier_does_not_create_phantom_items(tmp_path):
     «Латте 350 -» и «Латте 350 нет» выглядят как три разных товара.
     """
     from coffeeos import import_receipts as ir
-    csv = ("Дата и время;Номер чека;Наименование;Модификаторы;Количество;Цена\n"
-           "2026-08-01 08:00:00;1;Латте 350;-;1;260\n"
-           "2026-08-01 08:05:00;2;Латте 350;нет;1;260\n"
-           "2026-08-01 08:10:00;3;Латте 350;;1;260\n")
+
+    csv = (
+        "Дата и время;Номер чека;Наименование;Модификаторы;Количество;Цена\n"
+        "2026-08-01 08:00:00;1;Латте 350;-;1;260\n"
+        "2026-08-01 08:05:00;2;Латте 350;нет;1;260\n"
+        "2026-08-01 08:10:00;3;Латте 350;;1;260\n"
+    )
     ir.import_csv(_write(str(tmp_path), "ph.csv", csv), reset=True)
     conn = db.get_conn()
     names = {r["name"] for r in conn.execute("SELECT name FROM receipt_items")}
@@ -1329,17 +1429,23 @@ def _write(tmp, name, text, encoding="utf-8"):
 
 def test_import_poster_style_with_modifiers(tmp_path):
     from coffeeos import import_receipts as ir
-    csv = ("Дата и время;Номер чека;Наименование;Модификаторы;Количество;Цена;Сумма;"
-           "Тип оплаты;Сотрудник;Тип заказа\n"
-           "2026-08-01 08:12:00;1001;Латте 350;овсяное молоко;1;320;320;Карта;Аня;С собой\n"
-           "2026-08-01 08:12:00;1001;Круассан классический;;1;180;180;Карта;Аня;С собой\n"
-           "2026-08-01 09:40:00;1003;Айс американо 450;;1;190;190;Наличные;Аня;В зале\n")
+
+    csv = (
+        "Дата и время;Номер чека;Наименование;Модификаторы;Количество;Цена;Сумма;"
+        "Тип оплаты;Сотрудник;Тип заказа\n"
+        "2026-08-01 08:12:00;1001;Латте 350;овсяное молоко;1;320;320;Карта;Аня;С собой\n"
+        "2026-08-01 08:12:00;1001;Круассан классический;;1;180;180;Карта;Аня;С собой\n"
+        "2026-08-01 09:40:00;1003;Айс американо 450;;1;190;190;Наличные;Аня;В зале\n"
+    )
     path = _write(str(tmp_path), "poster.csv", csv)
     res = ir.import_csv(path, reset=True)
     conn = db.get_conn()
-    rows = list(conn.execute(
-        "SELECT i.base,i.kind,i.size,i.milk,i.iced,r.barista,r.channel,r.payment "
-        "FROM receipt_items i JOIN receipts r ON r.id=i.receipt_id ORDER BY i.id"))
+    rows = list(
+        conn.execute(
+            "SELECT i.base,i.kind,i.size,i.milk,i.iced,r.barista,r.channel,r.payment "
+            "FROM receipt_items i JOIN receipts r ON r.id=i.receipt_id ORDER BY i.id"
+        )
+    )
     conn.close()
     assert res["receipts"] == 2 and res["items"] == 3
     assert rows[0]["base"] == "Латте" and rows[0]["milk"] == "овсяное"
@@ -1351,9 +1457,12 @@ def test_import_poster_style_with_modifiers(tmp_path):
 
 def test_import_evotor_style_separate_date_and_time(tmp_path):
     from coffeeos import import_receipts as ir
-    csv = ("Дата,Время,Наименование,Кол-во,Цена,Сумма,Тип оплаты\n"
-           "01.08.2026,08:12,\"Латте 0,35 овсяное\",1,320,320,БЕЗНАЛИЧНЫМИ\n"
-           "01.08.2026,10:05,Раф ванильный 450,1,360,360,БЕЗНАЛИЧНЫМИ\n")
+
+    csv = (
+        "Дата,Время,Наименование,Кол-во,Цена,Сумма,Тип оплаты\n"
+        '01.08.2026,08:12,"Латте 0,35 овсяное",1,320,320,БЕЗНАЛИЧНЫМИ\n'
+        "01.08.2026,10:05,Раф ванильный 450,1,360,360,БЕЗНАЛИЧНЫМИ\n"
+    )
     path = _write(str(tmp_path), "evotor.csv", csv)
     res = ir.import_csv(path, reset=True)
     conn = db.get_conn()
@@ -1366,9 +1475,12 @@ def test_import_evotor_style_separate_date_and_time(tmp_path):
 
 def test_import_dedup_is_safe_to_repeat(tmp_path):
     from coffeeos import import_receipts as ir
-    csv = ("Дата и время;Номер чека;Наименование;Количество;Цена\n"
-           "2026-08-01 08:12:00;1001;Латте 350;1;260\n"
-           "2026-08-01 08:15:00;1002;Капучино 250;2;200\n")
+
+    csv = (
+        "Дата и время;Номер чека;Наименование;Количество;Цена\n"
+        "2026-08-01 08:12:00;1001;Латте 350;1;260\n"
+        "2026-08-01 08:15:00;1002;Капучино 250;2;200\n"
+    )
     path = _write(str(tmp_path), "d.csv", csv)
     ir.import_csv(path, reset=True)
     second = ir.import_csv(path, reset=False)
@@ -1380,8 +1492,11 @@ def test_import_dedup_is_safe_to_repeat(tmp_path):
 
 def test_import_cp1251_and_tabs(tmp_path):
     from coffeeos import import_receipts as ir
-    csv = ("Дата и время\tНомер чека\tНаименование\tКол-во\tЦена\n"
-           "2026-08-01 08:12:00\t1\tЛатте 350\t1\t260\n")
+
+    csv = (
+        "Дата и время\tНомер чека\tНаименование\tКол-во\tЦена\n"
+        "2026-08-01 08:12:00\t1\tЛатте 350\t1\t260\n"
+    )
     path = _write(str(tmp_path), "w.csv", csv, encoding="cp1251")
     res = ir.import_csv(path, reset=True)
     assert res["items"] == 1 and res["encoding"] == "cp1251"
@@ -1389,8 +1504,11 @@ def test_import_cp1251_and_tabs(tmp_path):
 
 def test_import_uses_sum_when_price_is_zero(tmp_path):
     from coffeeos import import_receipts as ir
-    csv = ("Дата и время;Номер чека;Наименование;Количество;Цена;Сумма\n"
-           "2026-08-01 08:12:00;1;Латте 350;2;0;520\n")
+
+    csv = (
+        "Дата и время;Номер чека;Наименование;Количество;Цена;Сумма\n"
+        "2026-08-01 08:12:00;1;Латте 350;2;0;520\n"
+    )
     path = _write(str(tmp_path), "z.csv", csv)
     ir.import_csv(path, reset=True)
     conn = db.get_conn()
@@ -1401,9 +1519,12 @@ def test_import_uses_sum_when_price_is_zero(tmp_path):
 
 def test_import_returns_are_subtracted(tmp_path):
     from coffeeos import import_receipts as ir
-    csv = ("Дата и время;Номер чека;Тип операции;Наименование;Количество;Цена\n"
-           "2026-08-01 08:12:00;1;Продажа;Латте 350;2;260\n"
-           "2026-08-01 12:00:00;2;Возврат;Латте 350;1;260\n")
+
+    csv = (
+        "Дата и время;Номер чека;Тип операции;Наименование;Количество;Цена\n"
+        "2026-08-01 08:12:00;1;Продажа;Латте 350;2;260\n"
+        "2026-08-01 12:00:00;2;Возврат;Латте 350;1;260\n"
+    )
     path = _write(str(tmp_path), "r.csv", csv)
     res = ir.import_csv(path, reset=True)
     conn = db.get_conn()
@@ -1414,9 +1535,12 @@ def test_import_returns_are_subtracted(tmp_path):
 
 def test_import_reports_what_it_cannot_compute(tmp_path):
     from coffeeos import import_receipts as ir
-    csv = ("Дата;Наименование;Количество;Цена\n"
-           "01.08.2026;Латте 350;1;260\n"
-           "01.08.2026;Капучино 250;1;200\n")
+
+    csv = (
+        "Дата;Наименование;Количество;Цена\n"
+        "01.08.2026;Латте 350;1;260\n"
+        "01.08.2026;Капучино 250;1;200\n"
+    )
     path = _write(str(tmp_path), "poor.csv", csv)
     res = ir.import_csv(path, reset=True)
     conn = db.get_conn()
@@ -1428,6 +1552,7 @@ def test_import_reports_what_it_cannot_compute(tmp_path):
 
 def test_import_failure_keeps_history(tmp_path):
     from coffeeos import import_receipts as ir
+
     conn = db.get_conn()
     before = conn.execute("SELECT COUNT(*) c FROM receipts").fetchone()["c"]
     conn.close()
@@ -1442,11 +1567,14 @@ def test_import_failure_keeps_history(tmp_path):
 
 def test_manual_waste_survives_first_real_import(tmp_path):
     from coffeeos import import_receipts as ir
+
     conn = db.get_conn()
     catalog.add_waste(conn, "сырники", 3)
     conn.close()
-    csv = ("Дата и время;Номер чека;Наименование;Количество;Цена\n"
-           "2026-08-01 08:12:00;1;Латте 350;1;260\n")
+    csv = (
+        "Дата и время;Номер чека;Наименование;Количество;Цена\n"
+        "2026-08-01 08:12:00;1;Латте 350;1;260\n"
+    )
     ir.import_csv(_write(str(tmp_path), "real.csv", csv), reset=False)
     conn = db.get_conn()
     n = conn.execute("SELECT COUNT(*) c FROM waste WHERE src='user'").fetchone()["c"]
@@ -1478,6 +1606,7 @@ def test_rescan_reparses_history_after_catalog_fix(tmp_path):
 def test_bot_is_closed_when_allowlist_empty():
     """Пустой список допущенных не должен делать выручку публичной."""
     from coffeeos import bot
+
     old = (config.BRIEF_CHAT_IDS, config.STAFF_CHAT_IDS)
     try:
         config.BRIEF_CHAT_IDS, config.STAFF_CHAT_IDS = [], []
@@ -1495,6 +1624,7 @@ def test_bot_is_closed_when_allowlist_empty():
 
 def test_supplier_has_no_analytics_access():
     from coffeeos import bot
+
     old = (config.BRIEF_CHAT_IDS, config.STAFF_CHAT_IDS, config.SUPPLIER_CHAT_ID)
     try:
         config.BRIEF_CHAT_IDS = ["111"]
@@ -1539,6 +1669,7 @@ def test_future_dated_receipt_does_not_break_reports():
 
 def test_backup_creates_and_rotates(tmp_path):
     from coffeeos import backup
+
     old = config.BACKUP_DIR
     try:
         config.BACKUP_DIR = str(tmp_path)
@@ -1561,6 +1692,7 @@ def test_db_uses_wal():
 
 def test_migrations_do_not_swallow_errors():
     import sqlite3
+
     conn = db.get_conn()
     with pytest.raises(sqlite3.OperationalError):
         db._add_column(conn, "no_such_table", "x", "TEXT")
@@ -1629,8 +1761,9 @@ def test_scenarios_always_carry_their_assumption():
 def test_no_bakery_leftovers_in_product_text():
     """Продукт пережил пивот целиком: пекарных формулировок в интерфейсе нет."""
     root = _project_root()
-    facing = [open(os.path.join(root, f), encoding="utf-8").read()
-              for f in ("live.html", "README.md")]
+    facing = [
+        open(os.path.join(root, f), encoding="utf-8").read() for f in ("live.html", "README.md")
+    ]
     # Старое имя не должно остаться нигде, включая код.
     for t in facing + [_all_sources()]:
         assert "ПекарьОС" not in t
@@ -1651,10 +1784,12 @@ def test_readme_promises_match_the_code():
     root = _project_root()
     docs = open(os.path.join(root, "README.md"), encoding="utf-8").read().lower()
     src = _all_sources().lower()
-    for phrase, needle in (("attach-rate", "attach_rate"),
-                           ("фудкост", "foodcost"),
-                           ("заявка поставщику", "order_draft"),
-                           ("витрин", "case_order")):
+    for phrase, needle in (
+        ("attach-rate", "attach_rate"),
+        ("фудкост", "foodcost"),
+        ("заявка поставщику", "order_draft"),
+        ("витрин", "case_order"),
+    ):
         if phrase in docs:
             assert needle in src, f"README обещает «{phrase}», а кода нет"
 

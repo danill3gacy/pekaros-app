@@ -6,6 +6,7 @@
 
 Запуск:  python -m coffeeos bot
 """
+
 import datetime as dt
 import logging
 
@@ -36,8 +37,9 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         # ротация: лог не должен за пару месяцев забить диск рядом с базой
-        RotatingFileHandler(config.LOG_PATH, maxBytes=5 * 1024 * 1024, backupCount=3,
-                            encoding="utf-8"),
+        RotatingFileHandler(
+            config.LOG_PATH, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        ),
         logging.StreamHandler(),
     ],
 )
@@ -48,13 +50,16 @@ logging.getLogger("apscheduler").setLevel(logging.WARNING)
 log = logging.getLogger("coffeeos.bot")
 
 KEYBOARD = ReplyKeyboardMarkup(
-    [["💰 Маржа и меню", "🥐 Витрина на завтра"],
-     ["📦 Заявка поставщику", "🥐 Еда к кофе"],
-     ["💸 Упущенная выручка", "👥 Смена"],
-     ["☕ Что пьют", "🥛 Молоко"],
-     ["📊 Экспресс-аудит", "🗑 Списания"],
-     ["📈 Выручка", "🧾 Сверка кассы"]],
-    resize_keyboard=True)
+    [
+        ["💰 Маржа и меню", "🥐 Витрина на завтра"],
+        ["📦 Заявка поставщику", "🥐 Еда к кофе"],
+        ["💸 Упущенная выручка", "👥 Смена"],
+        ["☕ Что пьют", "🥛 Молоко"],
+        ["📊 Экспресс-аудит", "🗑 Списания"],
+        ["📈 Выручка", "🧾 Сверка кассы"],
+    ],
+    resize_keyboard=True,
+)
 
 COMMANDS = [
     BotCommand("svodka", "Сводка сейчас"),
@@ -96,12 +101,15 @@ def is_allowed(update: Update):
 
 
 async def _deny(update: Update):
-    log.warning("Отказано в доступе: chat_id=%s (%s)",
-                getattr(update.effective_chat, "id", "?"),
-                getattr(update.effective_user, "username", "?"))
+    log.warning(
+        "Отказано в доступе: chat_id=%s (%s)",
+        getattr(update.effective_chat, "id", "?"),
+        getattr(update.effective_user, "username", "?"),
+    )
     try:
         await update.effective_message.reply_text(
-            "Этот бот обслуживает конкретную кофейню и доступен только её сотрудникам.")
+            "Этот бот обслуживает конкретную кофейню и доступен только её сотрудникам."
+        )
     except Exception:
         pass
 
@@ -131,11 +139,13 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 f"Бот запущен, но список допущенных пуст — данные пока закрыты для всех.\n\n"
                 f"Ваш ID: {uid}\n"
                 f"Впишите его в файл .env (строка BRIEF_CHAT_IDS) и перезапустите бота — "
-                f"тогда откроются кнопки, сводка и отчёты.")
+                f"тогда откроются кнопки, сводка и отчёты."
+            )
             return
         await update.message.reply_text(
             f"Этот бот обслуживает конкретную кофейню.\n"
-            f"Если вы её сотрудник — передайте владельцу свой ID: {uid}")
+            f"Если вы её сотрудник — передайте владельцу свой ID: {uid}"
+        )
         return
     # без Markdown — чтобы id с любыми символами гарантированно отобразился
     await update.message.reply_text(
@@ -144,7 +154,8 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"Спросите что угодно про кофейню или нажмите кнопку ниже.\n\n"
         f"Ваш ID: {uid}\n"
         f"Впишите это число в файл .env (строка BRIEF_CHAT_IDS), чтобы получать утреннюю сводку.",
-        reply_markup=KEYBOARD)
+        reply_markup=KEYBOARD,
+    )
 
 
 async def cmd_help(update, ctx):
@@ -174,22 +185,44 @@ def _markup_for(reply):
     и по команде /vitrina. Заявка — кнопку «отправить поставщику»."""
     if reply.startswith("🥐 *Витрина"):
         return InlineKeyboardMarkup(
-            [[InlineKeyboardButton("✅ Утвердить и отправить смене",
-                                   callback_data="approve_case")]])
+            [[InlineKeyboardButton("✅ Утвердить и отправить смене", callback_data="approve_case")]]
+        )
     if reply.startswith("📦 *Заявка"):
         return InlineKeyboardMarkup(
-            [[InlineKeyboardButton("📤 Отправить поставщику", callback_data="send_order")],
-             [InlineKeyboardButton("✏️ Дописать от руки", callback_data="rewrite_order")]])
+            [
+                [InlineKeyboardButton("📤 Отправить поставщику", callback_data="send_order")],
+                [InlineKeyboardButton("✏️ Дописать от руки", callback_data="rewrite_order")],
+            ]
+        )
     return None
 
 
-async def cmd_svodka(update, ctx):   await _agent_reply(update, "morning_brief")
-async def cmd_vitrina(update, ctx):  await _agent_reply(update, "answer_case")
-async def cmd_marzha(update, ctx):   await _agent_reply(update, "answer_margin")
-async def cmd_smena(update, ctx):    await _agent_reply(update, "answer_shift")
-async def cmd_nedelya(update, ctx):  await _agent_reply(update, "weekly_brief")
-async def cmd_upusheno(update, ctx): await _agent_reply(update, "answer_lost")
-async def cmd_zakupki(update, ctx):  await _agent_reply(update, "answer_supply")
+async def cmd_svodka(update, ctx):
+    await _agent_reply(update, "morning_brief")
+
+
+async def cmd_vitrina(update, ctx):
+    await _agent_reply(update, "answer_case")
+
+
+async def cmd_marzha(update, ctx):
+    await _agent_reply(update, "answer_margin")
+
+
+async def cmd_smena(update, ctx):
+    await _agent_reply(update, "answer_shift")
+
+
+async def cmd_nedelya(update, ctx):
+    await _agent_reply(update, "weekly_brief")
+
+
+async def cmd_upusheno(update, ctx):
+    await _agent_reply(update, "answer_lost")
+
+
+async def cmd_zakupki(update, ctx):
+    await _agent_reply(update, "answer_supply")
 
 
 ORDER_PROMPT = (
@@ -198,7 +231,8 @@ ORDER_PROMPT = (
     "Салфетки — 2 упаковки\n"
     "Средство для чистки групп\n"
     "Ванильный сироп — 1 бутылка\n\n"
-    "Передумали — напишите «отмена».")
+    "Передумали — напишите «отмена»."
+)
 
 
 async def cmd_status(update, ctx):
@@ -208,13 +242,14 @@ async def cmd_status(update, ctx):
     # выполнялось прямо в цикле событий, и на несколько секунд бот переставал
     # отвечать всем остальным.
     import asyncio
+
     text = await asyncio.to_thread(health.status_text)
     await _reply(update, text)
 
 
 # ---------- свободный текст ----------
 async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.message is None:          # отредактированное сообщение / пост в канале
+    if update.message is None:  # отредактированное сообщение / пост в канале
         return
     if not is_allowed(update):
         return await _deny(update)
@@ -225,8 +260,9 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if ctx.user_data.get("awaiting_order"):
         if low in ("отмена", "отменить", "стоп", "/cancel", "назад"):
             ctx.user_data["awaiting_order"] = False
-            await update.message.reply_text("Отменил. Спрашивайте что угодно 🙂",
-                                            reply_markup=KEYBOARD)
+            await update.message.reply_text(
+                "Отменил. Спрашивайте что угодно 🙂", reply_markup=KEYBOARD
+            )
             return
         # Клавиатура остаётся на экране и приглашает нажать кнопку. Нажатие —
         # это не список закупки: раньше поставщику уходила заявка с текстом
@@ -235,10 +271,13 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         ctx.user_data["awaiting_order"] = False
         if low not in orchestrator.BUTTONS:
             ctx.user_data["extra_order"] = text.strip()
-            msg = ("📦 Добавлю к заявке:\n\n" + text.strip() + "\n\nОтправляем?")
-            markup = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📤 Отправить поставщику", callback_data="send_order")],
-                [InlineKeyboardButton("✏️ Переписать", callback_data="rewrite_order")]])
+            msg = "📦 Добавлю к заявке:\n\n" + text.strip() + "\n\nОтправляем?"
+            markup = InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("📤 Отправить поставщику", callback_data="send_order")],
+                    [InlineKeyboardButton("✏️ Переписать", callback_data="rewrite_order")],
+                ]
+            )
             await update.message.reply_text(msg, reply_markup=markup)
             return
 
@@ -297,7 +336,7 @@ async def _approve_case(ctx, q):
 
     try:
         plan = await asyncio.to_thread(_work)
-    except Exception as e:                                  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         log.warning("approve_case error: %s", e)
         await q.message.reply_text("Не смог собрать заказ. Попробуйте ещё раз.")
         return
@@ -308,19 +347,21 @@ async def _approve_case(ctx, q):
         try:
             await ctx.bot.send_message(int(cid), plan["text"], parse_mode="Markdown")
             sent += 1
-        except Exception as e:                              # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             log.warning("case send error to %s: %s", cid, e)
     if sent:
         await q.message.reply_text(f"✅ Заказ витрины утверждён и отправлен смене ({sent} получ.).")
     elif targets:
         await q.message.reply_text(
             "⚠️ Заказ утверждён, но отправить смене не удалось — "
-            "проверьте STAFF_CHAT_IDS в .env и что сотрудник написал боту /start.")
+            "проверьте STAFF_CHAT_IDS в .env и что сотрудник написал боту /start."
+        )
     else:
         await q.message.reply_text(
             "✅ Заказ утверждён и сохранён.\n"
             "Отправлять пока некому: впишите chat_id бариста в STAFF_CHAT_IDS в .env "
-            "(он узнает свой id, написав боту /start).")
+            "(он узнает свой id, написав боту /start)."
+        )
 
 
 async def _send_order(ctx, q):
@@ -331,6 +372,7 @@ async def _send_order(ctx, q):
         conn = _conn()
         try:
             from . import supply
+
             return supply.order_draft(conn)
         finally:
             conn.close()
@@ -343,23 +385,25 @@ async def _send_order(ctx, q):
     if not body:
         await q.message.reply_text(
             "Заказывать нечего: расход не посчитан. Нажмите «📦 Заявка поставщику», "
-            "чтобы посмотреть, что мешает.")
+            "чтобы посмотреть, что мешает."
+        )
         return
     text = f"📦 Заявка от «{config.VENUE_NAME}»:\n\n{body}"
     if config.SUPPLIER_CHAT_ID:
         try:
             await ctx.bot.send_message(int(config.SUPPLIER_CHAT_ID), text)
             await q.message.reply_text("✅ Отправлено поставщику.")
-        except Exception as e:                              # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             log.warning("supplier send error: %s", e)
             await q.message.reply_text(
-                "Не удалось отправить автоматически. Вот заявка — перешлите её сами:\n\n"
-                + text)
+                "Не удалось отправить автоматически. Вот заявка — перешлите её сами:\n\n" + text
+            )
     else:
         await q.message.reply_text(
             text + "\n\n_Перешлите это поставщику. Чтобы бот отправлял сам, "
-                   "впишите SUPPLIER_CHAT_ID в .env._",
-            parse_mode="Markdown")
+            "впишите SUPPLIER_CHAT_ID в .env._",
+            parse_mode="Markdown",
+        )
     ctx.user_data["extra_order"] = ""
 
 
@@ -388,10 +432,12 @@ async def closing_reminder(ctx: ContextTypes.DEFAULT_TYPE):
     # Напоминание намеренно мягкое: план выпечки считается по чекам и работает
     # без этого ввода. Просить персонал о том, без чего система не живёт, —
     # значит потерять систему через месяц вместе с текучкой продавцов.
-    text = ("🌙 Смена закрывается. Если есть минута — отметьте, что осталось и что вылили: "
-            "«списание круассаны 4», «вылил молоко 1,5». Это уточняет заказ на завтра, "
-            "но не обязательно: что закончилось раньше времени, я вижу и сам по чекам. "
-            "А вот вылитое молоко не видно нигде, кроме этой строки.")
+    text = (
+        "🌙 Смена закрывается. Если есть минута — отметьте, что осталось и что вылили: "
+        "«списание круассаны 4», «вылил молоко 1,5». Это уточняет заказ на завтра, "
+        "но не обязательно: что закончилось раньше времени, я вижу и сам по чекам. "
+        "А вот вылитое молоко не видно нигде, кроме этой строки."
+    )
     for cid in config.STAFF_CHAT_IDS:
         try:
             await ctx.bot.send_message(int(cid), text)
@@ -403,6 +449,7 @@ async def auto_sync(ctx: ContextTypes.DEFAULT_TYPE):
     import asyncio
 
     from . import sync
+
     try:
         # в отдельном потоке — чтобы загрузка большого файла не подвешивала бота
         res = await asyncio.to_thread(sync.run_once)
@@ -416,6 +463,7 @@ async def daily_backup(ctx: ContextTypes.DEFAULT_TYPE):
     import asyncio
 
     from . import backup
+
     try:
         res = await asyncio.to_thread(backup.make_backup)
         log.info("Резервная копия: %s", res)
@@ -425,6 +473,7 @@ async def daily_backup(ctx: ContextTypes.DEFAULT_TYPE):
 
 async def health_watch(ctx: ContextTypes.DEFAULT_TYPE):
     import asyncio
+
     warn = await asyncio.to_thread(health.alert_if_broken)
     if warn:
         log.warning("health alert: %s", warn)
@@ -443,15 +492,21 @@ def _error_text(err):
     и писать в поддержку.
     """
     import sqlite3
+
     if isinstance(err, sqlite3.OperationalError) and "locked" in str(err).lower():
-        return ("Секунду — сейчас идёт загрузка выгрузки чеков, и база занята записью. "
-                "Повторите через минуту, ничего не потерялось.")
+        return (
+            "Секунду — сейчас идёт загрузка выгрузки чеков, и база занята записью. "
+            "Повторите через минуту, ничего не потерялось."
+        )
     if isinstance(err, sqlite3.DatabaseError):
-        return ("Не смог прочитать базу. Проверьте на сервере: "
-                "`python -m coffeeos status` — и, если нужно, восстановите последнюю "
-                "копию из папки backups.")
-    return ("Упс, что-то пошло не так — я уже записал ошибку. "
-            "Попробуйте ещё раз или нажмите /svodka.")
+        return (
+            "Не смог прочитать базу. Проверьте на сервере: "
+            "`python -m coffeeos status` — и, если нужно, восстановите последнюю "
+            "копию из папки backups."
+        )
+    return (
+        "Упс, что-то пошло не так — я уже записал ошибку. Попробуйте ещё раз или нажмите /svodka."
+    )
 
 
 async def on_error(update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -478,9 +533,11 @@ def build_app():
         raise SystemExit(bad_time[0] + " Проверьте BRIEF_TIME и CLOSE_TIME в .env.")
     bad_id = [p for p in problems if "не похож на число" in p]
     if bad_id:
-        raise SystemExit(bad_id[0] + " Исправьте BRIEF_CHAT_IDS/STAFF_CHAT_IDS в .env "
-                                     "(только цифры, несколько — через запятую), "
-                                     "иначе бот не пустит вас самих.")
+        raise SystemExit(
+            bad_id[0] + " Исправьте BRIEF_CHAT_IDS/STAFF_CHAT_IDS в .env "
+            "(только цифры, несколько — через запятую), "
+            "иначе бот не пустит вас самих."
+        )
     for p in problems:
         log.warning("Настройка: %s", p)
     db.init_db()
@@ -504,22 +561,35 @@ def build_app():
     bh, bm = config.brief_hour_minute()
     ch, cm = config.close_hour_minute()
     app.job_queue.run_daily(send_brief, time=dt.time(bh, bm, tzinfo=tz), name="morning_brief")
-    app.job_queue.run_daily(closing_reminder, time=dt.time(ch, cm, tzinfo=tz), name="closing_reminder")
+    app.job_queue.run_daily(
+        closing_reminder, time=dt.time(ch, cm, tzinfo=tz), name="closing_reminder"
+    )
     app.job_queue.run_repeating(health_watch, interval=6 * 3600, first=120, name="health_watch")
-    app.job_queue.run_daily(daily_backup, time=dt.time(max(0, min(23, config.BACKUP_HOUR)), 15, tzinfo=tz),
-                            name="daily_backup")
+    app.job_queue.run_daily(
+        daily_backup,
+        time=dt.time(max(0, min(23, config.BACKUP_HOUR)), 15, tzinfo=tz),
+        name="daily_backup",
+    )
     if config.SYNC_MODE and config.SYNC_MODE != "off":
-        app.job_queue.run_repeating(auto_sync, interval=max(5, config.SYNC_INTERVAL_MIN) * 60,
-                                    first=30, name="auto_sync")
-        log.info("Автозагрузка чеков включена: режим %s, каждые %s мин.",
-                 config.SYNC_MODE, config.SYNC_INTERVAL_MIN)
+        app.job_queue.run_repeating(
+            auto_sync, interval=max(5, config.SYNC_INTERVAL_MIN) * 60, first=30, name="auto_sync"
+        )
+        log.info(
+            "Автозагрузка чеков включена: режим %s, каждые %s мин.",
+            config.SYNC_MODE,
+            config.SYNC_INTERVAL_MIN,
+        )
     return app
 
 
 def main():
     app = build_app()
-    log.info("КофейняОС запущена. Сводка %s, напоминание %s (%s).",
-             config.BRIEF_TIME, config.CLOSE_TIME, config.TIMEZONE)
+    log.info(
+        "КофейняОС запущена. Сводка %s, напоминание %s (%s).",
+        config.BRIEF_TIME,
+        config.CLOSE_TIME,
+        config.TIMEZONE,
+    )
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 

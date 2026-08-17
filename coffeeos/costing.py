@@ -17,6 +17,7 @@
 `None`, а не ноль. Ноль здесь означал бы «маржа 100%», и владелец принял бы
 это за правду.
 """
+
 from collections import defaultdict
 
 from . import config, menu, reference
@@ -45,8 +46,10 @@ def set_price(conn, name, pack_price, pack_qty=None):
     if row is None:
         return None
     qty = pack_qty if pack_qty else row["pack_qty"]
-    conn.execute("UPDATE ingredients SET pack_price=?, pack_qty=?, price_src=? WHERE name=?",
-                 (float(pack_price), float(qty), PRICE_OWNER, name))
+    conn.execute(
+        "UPDATE ingredients SET pack_price=?, pack_qty=?, price_src=? WHERE name=?",
+        (float(pack_price), float(qty), PRICE_OWNER, name),
+    )
     conn.commit()
     return {"name": name, "pack_price": float(pack_price), "pack_qty": float(qty)}
 
@@ -62,12 +65,18 @@ def ensure_purchased_item(conn, name, kind, category=None):
         "INSERT OR IGNORE INTO ingredients"
         "(name,unit,pack_qty,pack_price,pack_name,category,shelf_days,lead_days,min_packs,price_src)"
         " VALUES(?,'pcs',1,0,'шт',?,?,?,0,?)",
-        (name, category or ("case" if kind == menu.KIND_FOOD else "goods"),
-         1 if kind == menu.KIND_FOOD else None,
-         1 if kind == menu.KIND_FOOD else 5, PRICE_UNKNOWN))
+        (
+            name,
+            category or ("case" if kind == menu.KIND_FOOD else "goods"),
+            1 if kind == menu.KIND_FOOD else None,
+            1 if kind == menu.KIND_FOOD else 5,
+            PRICE_UNKNOWN,
+        ),
+    )
     conn.execute(
         "INSERT OR IGNORE INTO recipes(item,size,ingredient,qty,src) VALUES(?,'*',?,1,'auto')",
-        (name, name))
+        (name, name),
+    )
 
 
 # ---------- рецепт порции ----------
@@ -85,10 +94,9 @@ def portion_ingredients(recipes, base, size=None, milk=None, mods="", iced=0, ch
     Возвращает {ингредиент: количество}. Пустой словарь — рецепта нет.
     """
     size_key, _known = menu.size_or_default(size)
-    parts = dict(recipes.get((base, size_key))
-                 or recipes.get((base, "*"))
-                 or recipes.get((base, "M"))
-                 or {})
+    parts = dict(
+        recipes.get((base, size_key)) or recipes.get((base, "*")) or recipes.get((base, "M")) or {}
+    )
     if not parts:
         return {}
 
@@ -134,8 +142,9 @@ def portion_cost(parts, ing_map):
     return {"cost": round(total, 2), "known": True, "estimated": estimated, "missing": []}
 
 
-def cost_of(conn, base, size=None, milk=None, mods="", iced=0, channel=None,
-            recipes=None, ing_map=None):
+def cost_of(
+    conn, base, size=None, milk=None, mods="", iced=0, channel=None, recipes=None, ing_map=None
+):
     """Себестоимость одной порции конкретной позиции — удобная обёртка."""
     recipes = recipes if recipes is not None else recipe_rows(conn)
     ing_map = ing_map if ing_map is not None else ingredients(conn)
@@ -160,6 +169,7 @@ def item_economics(conn, days=56, upto=None, kinds=(menu.KIND_DRINK, menu.KIND_F
     from datetime import timedelta
 
     from .analytics import day_str, last_day_with_data
+
     upto = upto or last_day_with_data(conn)
     start = upto - timedelta(days=days - 1)
     recipes = recipe_rows(conn)
@@ -172,22 +182,42 @@ def item_economics(conn, days=56, upto=None, kinds=(menu.KIND_DRINK, menu.KIND_F
            WHERE substr(r.ts,1,10) BETWEEN ? AND ? AND i.kind IN (%s) AND i.qty > 0
            GROUP BY i.base, i.kind, i.size, i.milk, i.mods, i.iced, r.channel"""
         % ",".join("?" * len(kinds)),
-        (day_str(start), day_str(upto), *kinds)).fetchall()
+        (day_str(start), day_str(upto), *kinds),
+    ).fetchall()
 
     agg = {}
     for r in rows:
         base = r["base"]
         if not base:
             continue
-        cur = agg.setdefault(base, {
-            "name": base, "kind": r["kind"], "qty": 0.0, "revenue": 0.0,
-            "cost_total": 0.0, "qty_costed": 0.0, "estimated": False,
-            "missing": set(), "variants": 0})
+        cur = agg.setdefault(
+            base,
+            {
+                "name": base,
+                "kind": r["kind"],
+                "qty": 0.0,
+                "revenue": 0.0,
+                "cost_total": 0.0,
+                "qty_costed": 0.0,
+                "estimated": False,
+                "missing": set(),
+                "variants": 0,
+            },
+        )
         cur["qty"] += r["q"] or 0
         cur["revenue"] += r["rev"] or 0
         cur["variants"] += 1
-        c = cost_of(conn, base, r["size"], r["milk"], r["mods"], r["iced"], r["channel"],
-                    recipes=recipes, ing_map=ing_map)
+        c = cost_of(
+            conn,
+            base,
+            r["size"],
+            r["milk"],
+            r["mods"],
+            r["iced"],
+            r["channel"],
+            recipes=recipes,
+            ing_map=ing_map,
+        )
         if c["known"]:
             cur["cost_total"] += c["cost"] * (r["q"] or 0)
             cur["qty_costed"] += r["q"] or 0
@@ -208,18 +238,36 @@ def item_economics(conn, days=56, upto=None, kinds=(menu.KIND_DRINK, menu.KIND_F
         if covered >= 0.8 and a["qty_costed"] > 0:
             cost = a["cost_total"] / a["qty_costed"]
             margin = price - cost
-            item = {"cost": round(cost, 2), "margin": round(margin, 2),
-                    "margin_total": round(margin * qty),
-                    "foodcost": round(cost / price, 4) if price else None,
-                    "cost_known": True, "estimated": a["estimated"],
-                    "coverage": round(covered, 2)}
+            item = {
+                "cost": round(cost, 2),
+                "margin": round(margin, 2),
+                "margin_total": round(margin * qty),
+                "foodcost": round(cost / price, 4) if price else None,
+                "cost_known": True,
+                "estimated": a["estimated"],
+                "coverage": round(covered, 2),
+            }
         else:
-            item = {"cost": None, "margin": None, "margin_total": None,
-                    "foodcost": None, "cost_known": False, "estimated": a["estimated"],
-                    "coverage": round(covered, 2),
-                    "missing": sorted(a["missing"])[:4]}
-        out.append({"name": base, "kind": a["kind"], "qty": round(qty, 1),
-                    "revenue": round(a["revenue"]), "price": round(price, 1), **item})
+            item = {
+                "cost": None,
+                "margin": None,
+                "margin_total": None,
+                "foodcost": None,
+                "cost_known": False,
+                "estimated": a["estimated"],
+                "coverage": round(covered, 2),
+                "missing": sorted(a["missing"])[:4],
+            }
+        out.append(
+            {
+                "name": base,
+                "kind": a["kind"],
+                "qty": round(qty, 1),
+                "revenue": round(a["revenue"]),
+                "price": round(price, 1),
+                **item,
+            }
+        )
     out.sort(key=lambda x: x["revenue"], reverse=True)
     return out
 
@@ -242,13 +290,15 @@ def totals(conn, days=56, upto=None):
     from datetime import timedelta
 
     from .analytics import day_str, last_day_with_data
+
     upto = upto or last_day_with_data(conn)
     start = upto - timedelta(days=days - 1)
     row = conn.execute(
         """SELECT COALESCE(SUM(i.qty*i.price), 0) r
            FROM receipts r0 JOIN receipt_items i ON i.receipt_id=r0.id
            WHERE substr(r0.ts,1,10) BETWEEN ? AND ?""",
-        (day_str(start), day_str(upto))).fetchone()
+        (day_str(start), day_str(upto)),
+    ).fetchone()
     revenue_total = row["r"] or 0
 
     items = item_economics(conn, days, upto)
@@ -263,7 +313,8 @@ def totals(conn, days=56, upto=None):
         "revenue_costed": round(rev_known),
         # доля ВСЕЙ выручки заведения, по которой маржа действительно посчитана
         "coverage": round(rev_known / revenue_total, 3) if revenue_total else 0,
-        "cost": round(cost), "margin": round(margin),
+        "cost": round(cost),
+        "margin": round(margin),
         "foodcost": round(cost / rev_known, 4) if rev_known else None,
         "estimated": any(i["estimated"] for i in known),
         "unpriced": [i["name"] for i in items if not i["cost_known"]][:12],
@@ -271,10 +322,10 @@ def totals(conn, days=56, upto=None):
 
 
 # ---------- разбор меню по деньгам ----------
-STAR = "звезда"          # много продаётся и хорошо зарабатывает
-WORKHORSE = "лошадка"    # много продаётся, зарабатывает мало
-PUZZLE = "загадка"       # зарабатывает хорошо, продаётся мало
-BALLAST = "балласт"      # и не продаётся, и не зарабатывает
+STAR = "звезда"  # много продаётся и хорошо зарабатывает
+WORKHORSE = "лошадка"  # много продаётся, зарабатывает мало
+PUZZLE = "загадка"  # зарабатывает хорошо, продаётся мало
+BALLAST = "балласт"  # и не продаётся, и не зарабатывает
 
 
 def menu_matrix(conn, days=56, upto=None):
@@ -294,13 +345,22 @@ def menu_matrix(conn, days=56, upto=None):
     for i in items:
         hi_m = i["margin"] >= med_margin
         hi_q = i["qty"] >= med_qty
-        i["group"] = (STAR if (hi_m and hi_q) else
-                      WORKHORSE if (not hi_m and hi_q) else
-                      PUZZLE if hi_m else BALLAST)
+        i["group"] = (
+            STAR
+            if (hi_m and hi_q)
+            else WORKHORSE
+            if (not hi_m and hi_q)
+            else PUZZLE
+            if hi_m
+            else BALLAST
+        )
         i["advice"] = _ADVICE[i["group"]]
-    items.sort(key=lambda x: (x["margin_total"] or 0), reverse=True)
-    return {"items": items, "median": {"margin": round(med_margin, 1), "qty": round(med_qty, 1)},
-            "note": None}
+    items.sort(key=lambda x: x["margin_total"] or 0, reverse=True)
+    return {
+        "items": items,
+        "median": {"margin": round(med_margin, 1), "qty": round(med_qty, 1)},
+        "note": None,
+    }
 
 
 _ADVICE = {
@@ -313,10 +373,11 @@ _ADVICE = {
 
 def high_foodcost(conn, days=56, upto=None, limit=6):
     """Позиции, где сырьё съедает больше ориентира: где искать деньги первым делом."""
-    items = [i for i in item_economics(conn, days, upto)
-             if i["cost_known"] and i["foodcost"] is not None]
+    items = [
+        i for i in item_economics(conn, days, upto) if i["cost_known"] and i["foodcost"] is not None
+    ]
     bad = [i for i in items if i["foodcost"] > config.TARGET_FOODCOST]
-    bad.sort(key=lambda x: (x["foodcost"] * x["revenue"]), reverse=True)
+    bad.sort(key=lambda x: x["foodcost"] * x["revenue"], reverse=True)
     return bad[:limit]
 
 
@@ -330,6 +391,7 @@ def milk_economics(conn, days=56, upto=None):
     from datetime import timedelta
 
     from .analytics import day_str, last_day_with_data
+
     upto = upto or last_day_with_data(conn)
     start = upto - timedelta(days=days - 1)
     recipes, ing_map = recipe_rows(conn), ingredients(conn)
@@ -340,11 +402,21 @@ def milk_economics(conn, days=56, upto=None):
            WHERE substr(r.ts,1,10) BETWEEN ? AND ? AND i.kind='drink'
                  AND i.milk IS NOT NULL AND i.qty > 0
            GROUP BY i.base, i.size, i.milk, i.mods, i.iced, r.channel""",
-        (day_str(start), day_str(upto))).fetchall()
+        (day_str(start), day_str(upto)),
+    ).fetchall()
     agg = defaultdict(lambda: {"qty": 0.0, "rev": 0.0, "cost": 0.0, "costed": 0.0})
     for r in rows:
-        c = cost_of(conn, r["base"], r["size"], r["milk"], r["mods"], r["iced"], r["channel"],
-                    recipes=recipes, ing_map=ing_map)
+        c = cost_of(
+            conn,
+            r["base"],
+            r["size"],
+            r["milk"],
+            r["mods"],
+            r["iced"],
+            r["channel"],
+            recipes=recipes,
+            ing_map=ing_map,
+        )
         a = agg[r["milk"]]
         a["qty"] += r["q"] or 0
         a["rev"] += r["rev"] or 0
@@ -357,10 +429,17 @@ def milk_economics(conn, days=56, upto=None):
             continue
         price = a["rev"] / a["qty"]
         cost = a["cost"] / a["costed"]
-        out.append({"milk": milk, "qty": round(a["qty"]), "price": round(price),
-                    "cost": round(cost, 1), "margin": round(price - cost, 1),
-                    "foodcost": round(cost / price, 3) if price else None,
-                    "share": 0.0})
+        out.append(
+            {
+                "milk": milk,
+                "qty": round(a["qty"]),
+                "price": round(price),
+                "cost": round(cost, 1),
+                "margin": round(price - cost, 1),
+                "foodcost": round(cost / price, 3) if price else None,
+                "share": 0.0,
+            }
+        )
     total = sum(x["qty"] for x in out) or 1
     for x in out:
         x["share"] = round(x["qty"] / total, 3)

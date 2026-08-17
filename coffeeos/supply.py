@@ -18,6 +18,7 @@
 на сколько дней хватит. Требовать ежедневного пересчёта нельзя: продукт,
 который держится на ручном вводе, умирает вместе с бариста, которого научили.
 """
+
 import math
 import re
 from datetime import timedelta
@@ -48,13 +49,15 @@ def consumption(conn, days=28, upto=None):
            WHERE substr(r.ts,1,10) BETWEEN ? AND ? AND i.qty > 0
                  AND i.base IS NOT NULL AND i.kind IN ('drink','food','goods','addon')
            GROUP BY i.base, i.size, i.milk, i.mods, i.iced, r.channel""",
-        (day_str(start), day_str(upto))).fetchall()
+        (day_str(start), day_str(upto)),
+    ).fetchall()
 
     used = {}
     no_recipe = set()
     for r in rows:
-        parts = costing.portion_ingredients(recipes, r["base"], r["size"], r["milk"],
-                                            r["mods"], r["iced"], r["channel"])
+        parts = costing.portion_ingredients(
+            recipes, r["base"], r["size"], r["milk"], r["mods"], r["iced"], r["channel"]
+        )
         if not parts:
             no_recipe.add(r["base"])
             continue
@@ -63,9 +66,10 @@ def consumption(conn, days=28, upto=None):
 
     # списанное сырьё тоже израсходовано
     for w in conn.execute(
-            "SELECT name, unit, SUM(qty) q FROM waste WHERE date BETWEEN ? AND ? "
-            "AND kind IN ('milk','ingredient') GROUP BY name, unit",
-            (day_str(start), day_str(upto))):
+        "SELECT name, unit, SUM(qty) q FROM waste WHERE date BETWEEN ? AND ? "
+        "AND kind IN ('milk','ingredient') GROUP BY name, unit",
+        (day_str(start), day_str(upto)),
+    ):
         row = ing_map.get(w["name"])
         if not row:
             continue
@@ -77,14 +81,27 @@ def consumption(conn, days=28, upto=None):
         row = ing_map.get(name)
         if row is None:
             continue
-        out[name] = {"name": name, "unit": row["unit"], "used": round(qty, 2),
-                     "per_day": round(qty / nd, 3), "category": row["category"],
-                     "pack_qty": row["pack_qty"], "pack_name": row["pack_name"],
-                     "pack_price": row["pack_price"], "price_src": row["price_src"],
-                     "shelf_days": row["shelf_days"], "lead_days": row["lead_days"],
-                     "min_packs": row["min_packs"]}
-    return {"days": nd, "from": day_str(start), "to": day_str(upto),
-            "items": out, "no_recipe": sorted(no_recipe)}
+        out[name] = {
+            "name": name,
+            "unit": row["unit"],
+            "used": round(qty, 2),
+            "per_day": round(qty / nd, 3),
+            "category": row["category"],
+            "pack_qty": row["pack_qty"],
+            "pack_name": row["pack_name"],
+            "pack_price": row["pack_price"],
+            "price_src": row["price_src"],
+            "shelf_days": row["shelf_days"],
+            "lead_days": row["lead_days"],
+            "min_packs": row["min_packs"],
+        }
+    return {
+        "days": nd,
+        "from": day_str(start),
+        "to": day_str(upto),
+        "items": out,
+        "no_recipe": sorted(no_recipe),
+    }
 
 
 def human_qty(qty, unit):
@@ -111,6 +128,7 @@ def record_stock(conn, ingredient, qty):
     заявку неверной сразу по двум строкам.
     """
     from .catalog import match_ingredient
+
     m = match_ingredient(conn, ingredient)
     if not m["name"]:
         return {"ambiguous": m["options"]} if len(m["options"]) > 1 else None
@@ -123,17 +141,23 @@ def record_stock(conn, ingredient, qty):
     name = m["name"]
     row = conn.execute("SELECT unit FROM ingredients WHERE name=?", (name,)).fetchone()
     mult = 1000.0 if row["unit"] in ("ml", "g") else 1.0
-    conn.execute("INSERT INTO stock_counts(ts,ingredient,qty) VALUES(?,?,?)",
-                 (config.now().isoformat(timespec="seconds"), name, qty * mult))
+    conn.execute(
+        "INSERT INTO stock_counts(ts,ingredient,qty) VALUES(?,?,?)",
+        (config.now().isoformat(timespec="seconds"), name, qty * mult),
+    )
     conn.commit()
     unit = {"ml": "л", "g": "кг"}.get(row["unit"], "шт")
     return {"name": name, "qty": qty, "unit": unit}
 
 
 def _last_counts(conn):
-    return {r["ingredient"]: (r["ts"], r["qty"]) for r in conn.execute(
-        "SELECT ingredient, ts, qty FROM stock_counts s WHERE ts = "
-        "(SELECT MAX(ts) FROM stock_counts x WHERE x.ingredient = s.ingredient)")}
+    return {
+        r["ingredient"]: (r["ts"], r["qty"])
+        for r in conn.execute(
+            "SELECT ingredient, ts, qty FROM stock_counts s WHERE ts = "
+            "(SELECT MAX(ts) FROM stock_counts x WHERE x.ingredient = s.ingredient)"
+        )
+    }
 
 
 def _used_since(conn, ts):
@@ -143,11 +167,14 @@ def _used_since(conn, ts):
         """SELECT i.base, i.size, i.milk, i.mods, i.iced, r.channel, SUM(i.qty) q
            FROM receipts r JOIN receipt_items i ON i.receipt_id=r.id
            WHERE r.ts > ? AND i.qty > 0 AND i.base IS NOT NULL
-           GROUP BY i.base, i.size, i.milk, i.mods, i.iced, r.channel""", (ts,)).fetchall()
+           GROUP BY i.base, i.size, i.milk, i.mods, i.iced, r.channel""",
+        (ts,),
+    ).fetchall()
     used = {}
     for r in rows:
-        parts = costing.portion_ingredients(recipes, r["base"], r["size"], r["milk"],
-                                            r["mods"], r["iced"], r["channel"])
+        parts = costing.portion_ingredients(
+            recipes, r["base"], r["size"], r["milk"], r["mods"], r["iced"], r["channel"]
+        )
         for ing, qty in parts.items():
             used[ing] = used.get(ing, 0.0) + qty * (r["q"] or 0)
     return used
@@ -161,8 +188,12 @@ def stock_state(conn):
     out = {}
     for name, (ts, qty) in counts.items():
         spent = _used_since(conn, ts).get(name, 0.0)
-        out[name] = {"counted_at": ts, "counted": qty, "spent_since": round(spent, 2),
-                     "left": round(max(0.0, qty - spent), 2)}
+        out[name] = {
+            "counted_at": ts,
+            "counted": qty,
+            "spent_since": round(spent, 2),
+            "left": round(max(0.0, qty - spent), 2),
+        }
     return out
 
 
@@ -216,7 +247,7 @@ def reorder(conn, horizon_days=None, days=28, upto=None):
     out = []
     for name, c in cons["items"].items():
         if c["category"] == CASE_CATEGORY:
-            continue                       # витрина заказывается отдельно, каждый день
+            continue  # витрина заказывается отдельно, каждый день
         per_day = c["per_day"]
         if per_day <= 0:
             continue
@@ -237,37 +268,57 @@ def reorder(conn, horizon_days=None, days=28, upto=None):
         days_left = round(left / per_day, 1) if (left is not None and per_day) else None
 
         if days_left is not None and days_left <= lead:
-            urgency = "critical"           # уже не успеваем: закончится до поставки
+            urgency = "critical"  # уже не успеваем: закончится до поставки
         elif days_left is not None and days_left <= lead + 2:
             urgency = "soon"
         elif days_left is None and packs > 0:
-            urgency = "plan"               # плановая заявка: остаток не считали
+            urgency = "plan"  # плановая заявка: остаток не считали
         else:
             urgency = "ok"
 
         qty_h, unit_h = human_qty(need_raw, c["unit"])
         left_h = human_qty(left, c["unit"])[0] if left is not None else None
-        out.append({
-            "name": name, "category": c["category"],
-            "per_day": human_qty(per_day, c["unit"])[0], "unit": unit_h,
-            "need": qty_h, "packs": packs, "pack_name": c["pack_name"],
-            "pack_qty": c["pack_qty"], "left": left_h, "days_left": days_left,
-            "lead_days": lead, "review_days": review, "urgency": urgency,
-            "price": round((c["pack_price"] or 0) * packs),
-            "price_known": c["price_src"] != costing.PRICE_UNKNOWN,
-            "shelf_days": c["shelf_days"],
-        })
+        out.append(
+            {
+                "name": name,
+                "category": c["category"],
+                "per_day": human_qty(per_day, c["unit"])[0],
+                "unit": unit_h,
+                "need": qty_h,
+                "packs": packs,
+                "pack_name": c["pack_name"],
+                "pack_qty": c["pack_qty"],
+                "left": left_h,
+                "days_left": days_left,
+                "lead_days": lead,
+                "review_days": review,
+                "urgency": urgency,
+                "price": round((c["pack_price"] or 0) * packs),
+                "price_known": c["price_src"] != costing.PRICE_UNKNOWN,
+                "shelf_days": c["shelf_days"],
+            }
+        )
     rank = {"critical": 0, "soon": 1, "plan": 2, "ok": 3}
     out.sort(key=lambda x: (rank[x["urgency"]], -(x["price"] or 0)))
-    note = None if stock else (
-        "Остатки не пересчитывали, поэтому заявка построена по расходу за период, "
-        "а не по тому, что стоит под стойкой. Пересчитайте пару позиций "
-        "(«остаток зерно 4», «остаток молоко 12») — и система начнёт говорить, "
-        "на сколько дней хватит и когда именно закончится.")
-    return {"horizon_days": horizon, "items": out,
-            "counted": bool(stock), "based_on_days": cons["days"], "note": note,
-            "total_price": sum(i["price"] for i in out if i["price_known"]),
-            "no_recipe": cons["no_recipe"]}
+    note = (
+        None
+        if stock
+        else (
+            "Остатки не пересчитывали, поэтому заявка построена по расходу за период, "
+            "а не по тому, что стоит под стойкой. Пересчитайте пару позиций "
+            "(«остаток зерно 4», «остаток молоко 12») — и система начнёт говорить, "
+            "на сколько дней хватит и когда именно закончится."
+        )
+    )
+    return {
+        "horizon_days": horizon,
+        "items": out,
+        "counted": bool(stock),
+        "based_on_days": cons["days"],
+        "note": note,
+        "total_price": sum(i["price"] for i in out if i["price_known"]),
+        "no_recipe": cons["no_recipe"],
+    }
 
 
 def order_draft(conn, horizon_days=None):
@@ -279,8 +330,14 @@ def order_draft(conn, horizon_days=None):
     by_cat = {}
     for i in lines:
         by_cat.setdefault(i["category"], []).append(i)
-    title = {"coffee": "Кофе", "dairy": "Молоко", "syrup": "Сиропы",
-             "packaging": "Расходники", "goods": "Товары", "other": "Прочее"}
+    title = {
+        "coffee": "Кофе",
+        "dairy": "Молоко",
+        "syrup": "Сиропы",
+        "packaging": "Расходники",
+        "goods": "Товары",
+        "other": "Прочее",
+    }
     body = []
     for cat in ("coffee", "dairy", "syrup", "packaging", "goods", "other"):
         group = by_cat.get(cat)
@@ -308,16 +365,24 @@ def maintenance_due(conn, today=None):
             try:
                 y, m, d = map(int, last[:10].split("-"))
                 from datetime import date as _date
+
                 since = (today - _date(y, m, d)).days
             except ValueError:
                 since = None
         else:
             since = None
         due = since is None or since >= r["period_days"]
-        out.append({"task": r["task"], "period_days": r["period_days"],
-                    "last_done": last, "days_since": since, "due": due,
-                    "overdue_days": (since - r["period_days"]) if (since is not None) else None,
-                    "note": r["note"]})
+        out.append(
+            {
+                "task": r["task"],
+                "period_days": r["period_days"],
+                "last_done": last,
+                "days_since": since,
+                "due": due,
+                "overdue_days": (since - r["period_days"]) if (since is not None) else None,
+                "note": r["note"],
+            }
+        )
     return [x for x in out if x["due"]]
 
 
@@ -329,8 +394,11 @@ def mark_done(conn, task_fragment, today=None):
     подстроки такое не находила, и раздел выглядел неработающим.
     """
     today = today or config.today()
-    words = [menu.stem(w) for w in re.findall(r"[а-яёa-z]+", (task_fragment or "").lower())
-             if len(w) >= 3]
+    words = [
+        menu.stem(w)
+        for w in re.findall(r"[а-яёa-z]+", (task_fragment or "").lower())
+        if len(w) >= 3
+    ]
     if not words:
         return None
     row = None
@@ -341,7 +409,6 @@ def mark_done(conn, task_fragment, today=None):
             break
     if row is None:
         return None
-    conn.execute("UPDATE maintenance SET last_done=? WHERE task=?",
-                 (day_str(today), row["task"]))
+    conn.execute("UPDATE maintenance SET last_done=? WHERE task=?", (day_str(today), row["task"]))
     conn.commit()
     return row["task"]

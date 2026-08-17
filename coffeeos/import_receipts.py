@@ -11,6 +11,7 @@
 Использование:
     python -m coffeeos import путь/к/выгрузке.csv [--reset]
 """
+
 import csv
 import hashlib
 import re
@@ -28,30 +29,98 @@ class ImportError_(Exception):
 
 # Ключевые слова для распознавания колонок.
 COLUMN_HINTS = [
-    ("ts",      ["дата и время", "дата/время", "дата-время", "datetime", "date_time", "timestamp"]),
-    ("receipt", ["номер чека", "№ чека", "чек №", "receipt", "check_number", "номер документа", "id чека", "фискальный документ"]),
+    ("ts", ["дата и время", "дата/время", "дата-время", "datetime", "date_time", "timestamp"]),
+    (
+        "receipt",
+        [
+            "номер чека",
+            "№ чека",
+            "чек №",
+            "receipt",
+            "check_number",
+            "номер документа",
+            "id чека",
+            "фискальный документ",
+        ],
+    ),
     # Модификаторы кассы («овсяное молоко», «сироп карамель», «450 мл») лежат
     # отдельной колонкой у Poster, iiko и Quick Resto. Без них «Латте» из чека
     # неотличим от «Латте на овсяном» — а это разная себестоимость и разный
     # расход. Поэтому модификатор приклеивается к названию перед разбором.
-    ("mods",    ["модификатор", "модификац", "добавк", "опци", "modifier", "options",
-                 "комментарий к блюду"]),
-    ("size",    ["размер", "объ[её]м", "size", "volume", "порци"]),
-    ("barista", ["сотрудник", "кассир", "бариста", "официант", "продавец", "employee",
-                 "waiter", "user_name", "пользователь"]),
-    ("guest",   ["карта лояльн", "клиент", "гость", "customer", "guest", "loyalty",
-                 "номер карты", "телефон клиента"]),
-    ("channel", ["тип заказа", "с собой", "способ обслуж", "order type", "заказ тип",
-                 "зал/навынос", "место"]),
-    ("name",    ["наимен", "товар", "позиц", "name", "product", "номенклат", "item", "блюдо"]),
-    ("qty",     ["кол-во", "колич", "кол.", "кол", "qty", "quantity", "штук", "count"]),
-    ("price",   ["цена за", "цена,", "цена", "price"]),
-    ("sum",     ["сумма", "итог", "total", "amount", "стоимость"]),
+    (
+        "mods",
+        [
+            "модификатор",
+            "модификац",
+            "добавк",
+            "опци",
+            "modifier",
+            "options",
+            "комментарий к блюду",
+        ],
+    ),
+    ("size", ["размер", "объ[её]м", "size", "volume", "порци"]),
+    (
+        "barista",
+        [
+            "сотрудник",
+            "кассир",
+            "бариста",
+            "официант",
+            "продавец",
+            "employee",
+            "waiter",
+            "user_name",
+            "пользователь",
+        ],
+    ),
+    (
+        "guest",
+        [
+            "карта лояльн",
+            "клиент",
+            "гость",
+            "customer",
+            "guest",
+            "loyalty",
+            "номер карты",
+            "телефон клиента",
+        ],
+    ),
+    (
+        "channel",
+        [
+            "тип заказа",
+            "с собой",
+            "способ обслуж",
+            "order type",
+            "заказ тип",
+            "зал/навынос",
+            "место",
+        ],
+    ),
+    ("name", ["наимен", "товар", "позиц", "name", "product", "номенклат", "item", "блюдо"]),
+    ("qty", ["кол-во", "колич", "кол.", "кол", "qty", "quantity", "штук", "count"]),
+    ("price", ["цена за", "цена,", "цена", "price"]),
+    ("sum", ["сумма", "итог", "total", "amount", "стоимость"]),
     ("payment", ["тип оплаты", "способ оплаты", "оплат", "payment", "форма расчет"]),
-    ("op",      ["тип операции", "тип чека", "тип документа", "вид операции", "операц",
-                 "признак расчет", "вид чека", "направление", "operation", "doc_type"]),
-    ("date",    ["дата", "date", "день"]),
-    ("time",    ["время", "time", "час"]),
+    (
+        "op",
+        [
+            "тип операции",
+            "тип чека",
+            "тип документа",
+            "вид операции",
+            "операц",
+            "признак расчет",
+            "вид чека",
+            "направление",
+            "operation",
+            "doc_type",
+        ],
+    ),
+    ("date", ["дата", "date", "день"]),
+    ("time", ["время", "time", "час"]),
 ]
 
 # Значения колонки «тип заказа»
@@ -68,10 +137,19 @@ CASH_HINTS = ("наличн", "нал.", "cash", "касса")
 CARD_HINTS = ("безнал", "карт", "card", "эквайр", "electron", "electronic", "sbp", "сбп", "qr")
 
 DATE_FORMATS = (
-    "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d.%m.%Y %H:%M:%S",
-    "%d.%m.%Y %H:%M", "%Y-%m-%d %H:%M", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M",
-    "%Y/%m/%d %H:%M:%S", "%d-%m-%Y %H:%M:%S",
-    "%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y", "%Y/%m/%d",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S",
+    "%d.%m.%Y %H:%M:%S",
+    "%d.%m.%Y %H:%M",
+    "%Y-%m-%d %H:%M",
+    "%d/%m/%Y %H:%M:%S",
+    "%d/%m/%Y %H:%M",
+    "%Y/%m/%d %H:%M:%S",
+    "%d-%m-%Y %H:%M:%S",
+    "%Y-%m-%d",
+    "%d.%m.%Y",
+    "%d/%m/%Y",
+    "%Y/%m/%d",
 )
 
 
@@ -87,7 +165,7 @@ def _detect_encoding(path):
             return enc
         except UnicodeDecodeError:
             continue
-    return "cp1251"          # последний шанс: cp1251 декодирует любые байты
+    return "cp1251"  # последний шанс: cp1251 декодирует любые байты
 
 
 def _match(header):
@@ -100,7 +178,7 @@ def _match(header):
     не находились вовсе, и вся выручка молча становилась нулевой.
     """
     hl = header.strip().lower()
-    best = None                       # (позиция, -длина подсказки, индекс поля)
+    best = None  # (позиция, -длина подсказки, индекс поля)
     for order_idx, (_field, hints) in enumerate(COLUMN_HINTS):
         for h in hints:
             pos = hl.find(h)
@@ -117,7 +195,7 @@ def _payment_of(raw):
     p = (raw or "").strip().lower()
     if not p:
         return "card"
-    if any(h in p for h in CARD_HINTS):        # «безнал» проверяем раньше «нал»
+    if any(h in p for h in CARD_HINTS):  # «безнал» проверяем раньше «нал»
         return "card"
     if any(h in p for h in CASH_HINTS):
         return "cash"
@@ -151,8 +229,22 @@ def _channel_of(raw):
 # Кассы кладут в пустую колонку модификаторов не пустоту, а заполнитель.
 # Приклеенный к названию, он плодит мнимые позиции: «Латте 350», «Латте 350 -»
 # и «Латте 350 нет» выглядят как три разных товара в каталоге и в дедупликации.
-_PLACEHOLDERS = {"-", "—", "–", "нет", "без", "none", "null", "n/a", "0", "не выбрано",
-                 "отсутствует", "no", "false", "--"}
+_PLACEHOLDERS = {
+    "-",
+    "—",
+    "–",
+    "нет",
+    "без",
+    "none",
+    "null",
+    "n/a",
+    "0",
+    "не выбрано",
+    "отсутствует",
+    "no",
+    "false",
+    "--",
+}
 
 
 def _full_name(name, mods, size):
@@ -192,7 +284,7 @@ def _parse_ts(value, time_value=""):
     if t and not re.search(r"\d{1,2}:\d{2}", v):
         v = f"{v} {t}"
     v = v.replace("T", " ")
-    v = re.sub(r"(\d{1,2}:\d{2}(?::\d{2})?)\.\d+", r"\1", v)   # миллисекунды только после времени
+    v = re.sub(r"(\d{1,2}:\d{2}(?::\d{2})?)\.\d+", r"\1", v)  # миллисекунды только после времени
     v = v.split("+")[0].replace("Z", "").strip()
     for fmt in DATE_FORMATS:
         try:
@@ -207,12 +299,16 @@ def _num(v, default=0.0):
     s = (v or "").replace("\xa0", " ").strip()
     if not s:
         return default
-    neg = s.startswith("(") and s.endswith(")")      # (90) = −90 в бухгалтерских выгрузках
+    neg = s.startswith("(") and s.endswith(")")  # (90) = −90 в бухгалтерских выгрузках
     s = re.sub(r"[^\d,.\-]", "", s)
     if not s:
         return default
-    if "," in s and "." in s:                      # 1,234.50 -> англ. формат
-        s = s.replace(",", "") if s.rfind(".") > s.rfind(",") else s.replace(".", "").replace(",", ".")
+    if "," in s and "." in s:  # 1,234.50 -> англ. формат
+        s = (
+            s.replace(",", "")
+            if s.rfind(".") > s.rfind(",")
+            else s.replace(".", "").replace(",", ".")
+        )
     else:
         s = s.replace(",", ".")
     try:
@@ -261,7 +357,7 @@ def _match_existing(by_daynum, g, kind, key):
     for cand in same_day:
         cand_timed = _has_time(cand["ts"])
         if incoming_timed and cand_timed:
-            if cand["ts"][:16] == g["ts"][:16]:      # то же время — тот же чек
+            if cand["ts"][:16] == g["ts"][:16]:  # то же время — тот же чек
                 return cand["id"], cand["key"]
         else:
             # хотя бы одна сторона без времени — сопоставить можно только по
@@ -278,8 +374,21 @@ def _insert_item(conn, rid, name, qty, price, resolve):
         "INSERT INTO receipt_items"
         "(receipt_id,name,base,category,kind,size,volume_ml,milk,mods,iced,qty,price)"
         " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-        (rid, name, p["base"], p["category"], p["kind"], p["size"], p["volume_ml"],
-         p["milk"], p["mods"], p["iced"], qty, price))
+        (
+            rid,
+            name,
+            p["base"],
+            p["category"],
+            p["kind"],
+            p["size"],
+            p["volume_ml"],
+            p["milk"],
+            p["mods"],
+            p["iced"],
+            qty,
+            price,
+        ),
+    )
     return p
 
 
@@ -294,8 +403,12 @@ def _merge_items(conn, rid, incoming, resolve, seen):
       • пришло меньше (частичная выгрузка) — только дописываем недостающее,
         ничего не удаляя.
     """
-    have = [(r["name"], r["qty"], r["price"]) for r in conn.execute(
-        "SELECT name, qty, price FROM receipt_items WHERE receipt_id=?", (rid,))]
+    have = [
+        (r["name"], r["qty"], r["price"])
+        for r in conn.execute(
+            "SELECT name, qty, price FROM receipt_items WHERE receipt_id=?", (rid,)
+        )
+    ]
 
     def norm(rows):
         return sorted((n, round(float(q), 6), round(float(p), 6)) for n, q, p in rows)
@@ -359,8 +472,8 @@ def import_csv(path, reset=False):
                 return row[idx].strip() if idx is not None and idx < len(row) else ""
 
             has_money_col = ("price" in cols) or ("sum" in cols)
-            groups = {}          # gkey -> {ts, payment, items:[(name,qty,price)]}
-            order = []           # порядок появления чеков
+            groups = {}  # gkey -> {ts, payment, items:[(name,qty,price)]}
+            order = []  # порядок появления чеков
             bad_date = bad_row = returns = 0
             for row in reader:
                 try:
@@ -412,11 +525,16 @@ def import_csv(path, reset=False):
                     else:
                         gkey = f"ts#{ts}#{kind}"
                     if gkey not in groups:
-                        groups[gkey] = {"ts": ts, "payment": payment, "ext_id": ext_id,
-                                        "kind": kind, "items": [],
-                                        "barista": cell(row, "barista") or None,
-                                        "guest": cell(row, "guest") or None,
-                                        "channel": _channel_of(cell(row, "channel"))}
+                        groups[gkey] = {
+                            "ts": ts,
+                            "payment": payment,
+                            "ext_id": ext_id,
+                            "kind": kind,
+                            "items": [],
+                            "barista": cell(row, "barista") or None,
+                            "guest": cell(row, "guest") or None,
+                            "channel": _channel_of(cell(row, "channel")),
+                        }
                         order.append(gkey)
                     groups[gkey]["items"].append((name, qty, price))
                 except Exception:
@@ -454,21 +572,23 @@ def import_csv(path, reset=False):
                 conn.execute("DELETE FROM ingredients WHERE category IN ('case','goods')")
                 overrides.clear()
                 parse_cache.clear()
-                conn.execute("INSERT INTO kv(key,value) VALUES('demo_data','0') "
-                             "ON CONFLICT(key) DO UPDATE SET value=excluded.value")
+                conn.execute(
+                    "INSERT INTO kv(key,value) VALUES('demo_data','0') "
+                    "ON CONFLICT(key) DO UPDATE SET value=excluded.value"
+                )
 
             # Существующие чеки: и по точному ключу, и сгруппированные по
             # (дата, номер, вид) — чтобы сопоставить выгрузки, где у одного и
             # того же чека разная точность времени.
             known, by_daynum = {}, defaultdict(list)
-            for r in conn.execute(
-                    "SELECT ext_id, id, ts FROM receipts WHERE ext_id IS NOT NULL"):
+            for r in conn.execute("SELECT ext_id, id, ts FROM receipts WHERE ext_id IS NOT NULL"):
                 known[r["ext_id"]] = r["id"]
                 head = r["ext_id"].split("#")
                 if len(head) >= 3 and not r["ext_id"].startswith("h#"):
                     by_daynum[(head[0], head[1], head[2][:1])].append(
-                        {"key": r["ext_id"], "id": r["id"], "ts": r["ts"]})
-            seen_hash = {}          # для чеков без номера: сколько одинаковых уже было
+                        {"key": r["ext_id"], "id": r["id"], "ts": r["ts"]}
+                    )
+            seen_hash = {}  # для чеков без номера: сколько одинаковых уже было
             for gkey in order:
                 g = groups[gkey]
                 kind = g.get("kind", "S")
@@ -494,14 +614,22 @@ def import_csv(path, reset=False):
                 cur = conn.execute(
                     "INSERT INTO receipts(ts,payment,ext_id,barista,guest,channel) "
                     "VALUES(?,?,?,?,?,?)",
-                    (g["ts"], g["payment"], key, g.get("barista"), g.get("guest"),
-                     g.get("channel")))
+                    (
+                        g["ts"],
+                        g["payment"],
+                        key,
+                        g.get("barista"),
+                        g.get("guest"),
+                        g.get("channel"),
+                    ),
+                )
                 rid = cur.lastrowid
                 known[key] = rid
                 if g["ext_id"]:
                     head = key.split("#")
                     by_daynum[(head[0], head[1], head[2][:1])].append(
-                        {"key": key, "id": rid, "ts": g["ts"]})
+                        {"key": key, "id": rid, "ts": g["ts"]}
+                    )
                 rows_added += 1
                 for name, qty, price in g["items"]:
                     seen_bases.add(_insert_item(conn, rid, name, qty, price, resolve)["base"])
@@ -513,19 +641,26 @@ def import_csv(path, reset=False):
                 catalog_mod.register(conn, p)
             conn.commit()
         except Exception:
-            conn.rollback()          # либо загрузилось всё, либо база как была
+            conn.rollback()  # либо загрузилось всё, либо база как была
             raise
-        service = sum(1 for p in parse_cache.values()
-                      if p["kind"] == "service")
+        service = sum(1 for p in parse_cache.values() if p["kind"] == "service")
         # без времени продажи не считаются час пик, распроданность и упущенная
         # выручка — об этом надо предупредить, а не молча показывать нули
         no_time = all(not _has_time(groups[k]["ts"]) for k in order) if order else False
-        return {"receipts": rows_added, "items": items_added, "dupes": dupes,
-                "updated": updated, "skipped": bad_row, "bad_date": bad_date,
-                "returns": returns, "service_items": service,
-                "no_payment_column": "payment" not in cols,
-                "no_receipt_column": "receipt" not in cols,
-                "no_time_column": no_time, "encoding": enc}
+        return {
+            "receipts": rows_added,
+            "items": items_added,
+            "dupes": dupes,
+            "updated": updated,
+            "skipped": bad_row,
+            "bad_date": bad_date,
+            "returns": returns,
+            "service_items": service,
+            "no_payment_column": "payment" not in cols,
+            "no_receipt_column": "receipt" not in cols,
+            "no_time_column": no_time,
+            "encoding": enc,
+        }
     finally:
         conn.close()
 
@@ -539,6 +674,8 @@ if __name__ == "__main__":
     except ImportError_ as e:
         print("Ошибка:", e)
         sys.exit(1)
-    print(f"Загружено чеков: {res['receipts']}, позиций: {res['items']}, "
-          f"уточнено чеков: {res['updated']}, пропущено дублей: {res['dupes']}, "
-          f"битых строк: {res['skipped']}, строк с непонятной датой: {res['bad_date']}")
+    print(
+        f"Загружено чеков: {res['receipts']}, позиций: {res['items']}, "
+        f"уточнено чеков: {res['updated']}, пропущено дублей: {res['dupes']}, "
+        f"битых строк: {res['skipped']}, строк с непонятной датой: {res['bad_date']}"
+    )

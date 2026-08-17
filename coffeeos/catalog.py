@@ -11,10 +11,11 @@
 ложный признак распроданности и показывают реальную потерю на молоке, которую
 иначе не увидеть никак — вылитое молоко в кассе не отражается вообще.
 """
+
 from . import config, menu
 from .analytics import day_str
 
-MIN_STEM = 3          # по одной-двум буквам позиция не опознаётся
+MIN_STEM = 3  # по одной-двум буквам позиция не опознаётся
 MAX_WASTE_QTY = 1000  # больше тысячи единиц за день одна точка не спишет
 
 
@@ -30,8 +31,9 @@ def resolve(conn, name, overrides=None):
     """
     parsed = menu.parse(name)
     if overrides is None:
-        row = conn.execute("SELECT kind, category FROM menu_items WHERE name=?",
-                           (parsed["base"],)).fetchone()
+        row = conn.execute(
+            "SELECT kind, category FROM menu_items WHERE name=?", (parsed["base"],)
+        ).fetchone()
         override = (row["kind"], row["category"]) if row else None
     else:
         override = overrides.get(parsed["base"])
@@ -63,8 +65,18 @@ def rescan(conn):
         cur = conn.execute(
             "UPDATE receipt_items SET base=?, category=?, kind=?, size=?, volume_ml=?, "
             "milk=?, mods=?, iced=? WHERE name=?",
-            (p["base"], p["category"], p["kind"], p["size"], p["volume_ml"],
-             p["milk"], p["mods"], p["iced"], name))
+            (
+                p["base"],
+                p["category"],
+                p["kind"],
+                p["size"],
+                p["volume_ml"],
+                p["milk"],
+                p["mods"],
+                p["iced"],
+                name,
+            ),
+        )
         changed += cur.rowcount
         register(conn, p)
     conn.commit()
@@ -73,8 +85,10 @@ def rescan(conn):
 
 def owner_overrides(conn):
     """Один запрос вместо запроса на каждую строку выгрузки."""
-    return {r["name"]: (r["kind"], r["category"])
-            for r in conn.execute("SELECT name, kind, category FROM menu_items")}
+    return {
+        r["name"]: (r["kind"], r["category"])
+        for r in conn.execute("SELECT name, kind, category FROM menu_items")
+    }
 
 
 def register(conn, parsed):
@@ -83,19 +97,27 @@ def register(conn, parsed):
     stocked = 1 if parsed["kind"] == menu.KIND_FOOD else 0
     conn.execute(
         "INSERT OR IGNORE INTO menu_items(name,category,kind,stocked) VALUES(?,?,?,?)",
-        (parsed["base"], parsed["category"], parsed["kind"], stocked))
+        (parsed["base"], parsed["category"], parsed["kind"], stocked),
+    )
     if parsed["kind"] in (menu.KIND_FOOD, menu.KIND_GOODS):
         from . import costing
+
         costing.ensure_purchased_item(conn, parsed["base"], parsed["kind"])
 
 
 def catalog(conn):
     """Каталог с видом позиции — чтобы владелец мог его проверить."""
-    return [{"name": r["name"], "category": r["category"], "kind": r["kind"],
-             "stocked": bool(r["stocked"])}
-            for r in conn.execute(
-                "SELECT name, category, kind, stocked FROM menu_items "
-                "ORDER BY kind, name")]
+    return [
+        {
+            "name": r["name"],
+            "category": r["category"],
+            "kind": r["kind"],
+            "stocked": bool(r["stocked"]),
+        }
+        for r in conn.execute(
+            "SELECT name, category, kind, stocked FROM menu_items ORDER BY kind, name"
+        )
+    ]
 
 
 def match_names(names, text):
@@ -120,8 +142,11 @@ def match_names(names, text):
     hits = [n for n in names if all(_word_in(w, n.lower()) for w in words)]
     if not hits:
         stem = words[0][:5]
-        hits = [n for n in names
-                if any(w.startswith(stem) for w in n.lower().split()) or stem in n.lower()]
+        hits = [
+            n
+            for n in names
+            if any(w.startswith(stem) for w in n.lower().split()) or stem in n.lower()
+        ]
     if len(hits) == 1:
         return {"name": hits[0], "options": hits}
     return {"name": None, "options": sorted(hits)}
@@ -206,8 +231,13 @@ def set_stocked(conn, name, stocked):
 
 def set_kind(conn, name, kind):
     """Переопределить вид позиции (напиток / витрина / товар / служебное)."""
-    if kind not in (menu.KIND_DRINK, menu.KIND_FOOD, menu.KIND_GOODS,
-                    menu.KIND_ADDON, menu.KIND_SERVICE):
+    if kind not in (
+        menu.KIND_DRINK,
+        menu.KIND_FOOD,
+        menu.KIND_GOODS,
+        menu.KIND_ADDON,
+        menu.KIND_SERVICE,
+    ):
         return None
     nm = find_item(conn, name)
     if nm is None:
@@ -262,35 +292,48 @@ def add_waste(conn, name, qty, day=None):
     nm = m["name"]
     if nm is not None:
         price = conn.execute(
-            "SELECT price FROM receipt_items WHERE base=? AND qty>0 ORDER BY id DESC LIMIT 1",
-            (nm,)).fetchone()
+            "SELECT price FROM receipt_items WHERE base=? AND qty>0 ORDER BY id DESC LIMIT 1", (nm,)
+        ).fetchone()
         unit_price = price["price"] if price else 0
         conn.execute(
             "INSERT INTO waste(date,name,qty,unit,amount,kind) VALUES(?,?,?,'шт',?,'food')",
-            (day_str(day), nm, qty, qty * unit_price))
+            (day_str(day), nm, qty, qty * unit_price),
+        )
         conn.commit()
-        return {"name": nm, "qty": qty, "unit": "шт", "amount": qty * unit_price,
-                "kind": "food"}
+        return {"name": nm, "qty": qty, "unit": "шт", "amount": qty * unit_price, "kind": "food"}
 
     # 2) сырьё: молоко и прочие ингредиенты — по себестоимости
     mi = match_ingredient(conn, phrase)
     if not mi["name"] and len(mi["options"]) > 1:
         return {"ambiguous": mi["options"]}
-    row = conn.execute("SELECT * FROM ingredients WHERE name=?", (mi["name"],)).fetchone() \
-        if mi["name"] else None
+    row = (
+        conn.execute("SELECT * FROM ingredients WHERE name=?", (mi["name"],)).fetchone()
+        if mi["name"]
+        else None
+    )
     if row is not None:
         unit_name, per_unit = _unit_for_ingredient(row)
-        base_qty = qty * per_unit                       # в единицах хранения (мл, г, шт)
+        base_qty = qty * per_unit  # в единицах хранения (мл, г, шт)
         pack = row["pack_qty"] or 1
         amount = base_qty * (row["pack_price"] or 0) / pack
-        kind = "milk" if (row["category"] == "dairy" and "олок" in row["name"].lower()) \
+        kind = (
+            "milk"
+            if (row["category"] == "dairy" and "олок" in row["name"].lower())
             else "ingredient"
+        )
         conn.execute(
             "INSERT INTO waste(date,name,qty,unit,amount,kind) VALUES(?,?,?,?,?,?)",
-            (day_str(day), row["name"], qty, unit_name, amount, kind))
+            (day_str(day), row["name"], qty, unit_name, amount, kind),
+        )
         conn.commit()
-        return {"name": row["name"], "qty": qty, "unit": unit_name, "amount": amount,
-                "kind": kind, "estimated": row["price_src"] != "owner"}
+        return {
+            "name": row["name"],
+            "qty": qty,
+            "unit": unit_name,
+            "amount": amount,
+            "kind": kind,
+            "estimated": row["price_src"] != "owner",
+        }
     return None
 
 
@@ -304,23 +347,39 @@ def waste_report(conn, day):
     ds = day_str(day)
     rows = conn.execute(
         "SELECT name, kind, unit, SUM(qty) qty, SUM(amount) amount FROM waste WHERE date=? "
-        "GROUP BY name, kind, unit ORDER BY amount DESC", (ds,)).fetchall()
-    items = [{"name": x["name"], "kind": x["kind"], "unit": x["unit"],
-              "qty": x["qty"], "amount": x["amount"] or 0} for x in rows]
+        "GROUP BY name, kind, unit ORDER BY amount DESC",
+        (ds,),
+    ).fetchall()
+    items = [
+        {
+            "name": x["name"],
+            "kind": x["kind"],
+            "unit": x["unit"],
+            "qty": x["qty"],
+            "amount": x["amount"] or 0,
+        }
+        for x in rows
+    ]
     case = [i for i in items if i["kind"] == "food"]
     raw = [i for i in items if i["kind"] != "food"]
     case_total = sum(i["amount"] for i in case)
     raw_total = sum(i["amount"] for i in raw)
     from .analytics import sales_summary
+
     sales = sales_summary(conn, day)
     rev = sales["revenue"] or 0
-    return {"items": items, "case": case, "raw": raw,
-            "case_total": case_total, "raw_total": raw_total,
-            "total": case_total + raw_total,
-            "case_pct": (case_total / rev * 100) if rev else 0,
-            "raw_pct": (raw_total / rev * 100) if rev else 0,
-            # совместимость с прежним именем поля в интерфейсах
-            "pct": ((case_total + raw_total) / rev * 100) if rev else 0}
+    return {
+        "items": items,
+        "case": case,
+        "raw": raw,
+        "case_total": case_total,
+        "raw_total": raw_total,
+        "total": case_total + raw_total,
+        "case_pct": (case_total / rev * 100) if rev else 0,
+        "raw_pct": (raw_total / rev * 100) if rev else 0,
+        # совместимость с прежним именем поля в интерфейсах
+        "pct": ((case_total + raw_total) / rev * 100) if rev else 0,
+    }
 
 
 def milk_waste(conn, days=56, upto=None):
@@ -333,18 +392,25 @@ def milk_waste(conn, days=56, upto=None):
     from datetime import timedelta
 
     from .analytics import last_day_with_data
+
     upto = upto or last_day_with_data(conn)
     start = upto - timedelta(days=days - 1)
     row = conn.execute(
         "SELECT SUM(qty) q, SUM(amount) a, COUNT(DISTINCT date) d FROM waste "
         "WHERE date BETWEEN ? AND ? AND kind='milk'",
-        (day_str(start), day_str(upto))).fetchone()
+        (day_str(start), day_str(upto)),
+    ).fetchone()
     ndays = row["d"] or 0
     if not ndays:
-        return {"tracked": False,
-                "note": "вылитое молоко не отмечают — эта потеря не видна нигде, "
-                        "её можно отметить одной фразой: «вылил молоко 1,5»"}
-    return {"tracked": True, "days": ndays,
-            "litres_per_day": round((row["q"] or 0) / ndays, 2),
-            "money_per_day": round((row["a"] or 0) / ndays),
-            "money_per_month": round((row["a"] or 0) / ndays * 30)}
+        return {
+            "tracked": False,
+            "note": "вылитое молоко не отмечают — эта потеря не видна нигде, "
+            "её можно отметить одной фразой: «вылил молоко 1,5»",
+        }
+    return {
+        "tracked": True,
+        "days": ndays,
+        "litres_per_day": round((row["q"] or 0) / ndays, 2),
+        "money_per_day": round((row["a"] or 0) / ndays),
+        "money_per_month": round((row["a"] or 0) / ndays * 30),
+    }

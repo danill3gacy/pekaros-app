@@ -7,6 +7,7 @@
 Копия снимается штатным механизмом SQLite (не простым копированием файла),
 поэтому безопасна даже если в этот момент идёт запись.
 """
+
 import glob
 import logging
 import os
@@ -55,7 +56,7 @@ def make_backup(keep=None):
         source = sqlite3.connect(src)
         target = sqlite3.connect(dst)
         with target:
-            source.backup(target)          # согласованный снимок (корректно и в режиме WAL)
+            source.backup(target)  # согласованный снимок (корректно и в режиме WAL)
     except Exception as e:
         log.warning("Резервная копия не создана: %r", e)
         for c in (target, source):
@@ -63,7 +64,7 @@ def make_backup(keep=None):
                 c and c.close()
             except Exception:
                 pass
-        if os.path.exists(dst):            # недоделанный файл не должен занимать слот ротации
+        if os.path.exists(dst):  # недоделанный файл не должен занимать слот ротации
             try:
                 os.remove(dst)
             except Exception:
@@ -82,18 +83,25 @@ def make_backup(keep=None):
     size_mb = os.path.getsize(dst) / 1024 / 1024
     files = sorted(glob.glob(os.path.join(d, "coffeeos-*.db")), key=_made_at)
     removed = 0
-    keep = max(1, int(keep or 1))          # 0 не должен означать «хранить бесконечно»
+    keep = max(1, int(keep or 1))  # 0 не должен означать «хранить бесконечно»
     for old in files[:-keep]:
         if os.path.abspath(old) == os.path.abspath(dst):
-            continue                       # только что созданную копию не трогаем никогда
+            continue  # только что созданную копию не трогаем никогда
         try:
             os.remove(old)
             removed += 1
         except Exception:
             pass
-    log.info("Резервная копия: %s (%.1f МБ), удалено старых: %s", os.path.basename(dst), size_mb, removed)
-    return {"ok": True, "file": dst, "size_mb": round(size_mb, 1),
-            "total": len(files) - removed, "removed": removed}
+    log.info(
+        "Резервная копия: %s (%.1f МБ), удалено старых: %s", os.path.basename(dst), size_mb, removed
+    )
+    return {
+        "ok": True,
+        "file": dst,
+        "size_mb": round(size_mb, 1),
+        "total": len(files) - removed,
+        "removed": removed,
+    }
 
 
 def list_backups():
@@ -104,9 +112,13 @@ def list_backups():
     for f in sorted(glob.glob(os.path.join(d, "coffeeos-*.db")), key=_made_at, reverse=True):
         try:
             size = os.path.getsize(f)
-        except OSError:                     # копию удалили прямо сейчас
+        except OSError:  # копию удалили прямо сейчас
             continue
-        out.append({"file": os.path.basename(f),
-                    "size_mb": round(size / 1024 / 1024, 1),
-                    "made": datetime.fromtimestamp(os.path.getmtime(f)).strftime("%Y-%m-%d %H:%M")})
+        out.append(
+            {
+                "file": os.path.basename(f),
+                "size_mb": round(size / 1024 / 1024, 1),
+                "made": datetime.fromtimestamp(os.path.getmtime(f)).strftime("%Y-%m-%d %H:%M"),
+            }
+        )
     return out

@@ -9,6 +9,7 @@
 Дубли исключаются на уровне импорта: чек опознаётся по (дата + номер чека), а
 без номера — по содержимому. Повторная загрузка тех же данных безопасна.
 """
+
 import csv
 import glob
 import json
@@ -25,7 +26,7 @@ from .import_receipts import ImportError_, import_csv
 
 log = logging.getLogger("coffeeos.sync")
 
-STABLE_AGE_SEC = 5          # файл считаем дописанным, если он не менялся столько секунд
+STABLE_AGE_SEC = 5  # файл считаем дописанным, если он не менялся столько секунд
 
 
 def _move(src, dst_dir):
@@ -52,8 +53,13 @@ def sync_folder(folder):
     imported_dir = os.path.join(folder, "_imported")
     failed_dir = os.path.join(folder, "_failed")
     # регистронезависимые ФС (macOS) отдают файл дважды — убираем повторы
-    files = sorted({os.path.realpath(p) for p in
-                    glob.glob(os.path.join(folder, "*.csv")) + glob.glob(os.path.join(folder, "*.CSV"))})
+    files = sorted(
+        {
+            os.path.realpath(p)
+            for p in glob.glob(os.path.join(folder, "*.csv"))
+            + glob.glob(os.path.join(folder, "*.CSV"))
+        }
+    )
 
     processed = total = dupes = failed = 0
     for f in files:
@@ -72,14 +78,22 @@ def sync_folder(folder):
                 # ничего не распознано — в карантин, чтобы можно было разобраться
                 _move(f, failed_dir)
                 failed += 1
-                log.warning("Из файла %s не распознано ни одной позиции "
-                            "(битых строк: %s, непонятных дат: %s). Перенесён в _failed.",
-                            os.path.basename(f), res.get("skipped", 0), res.get("bad_date", 0))
+                log.warning(
+                    "Из файла %s не распознано ни одной позиции "
+                    "(битых строк: %s, непонятных дат: %s). Перенесён в _failed.",
+                    os.path.basename(f),
+                    res.get("skipped", 0),
+                    res.get("bad_date", 0),
+                )
             else:
                 _move(f, imported_dir)
-                log.info("Загружен %s: +%s позиций, уточнено чеков %s, %s дублей пропущено",
-                         os.path.basename(f), res["items"], res.get("updated", 0),
-                         res.get("dupes", 0))
+                log.info(
+                    "Загружен %s: +%s позиций, уточнено чеков %s, %s дублей пропущено",
+                    os.path.basename(f),
+                    res["items"],
+                    res.get("updated", 0),
+                    res.get("dupes", 0),
+                )
         except ImportError_ as e:
             failed += 1
             try:
@@ -87,7 +101,7 @@ def sync_folder(folder):
             except Exception:
                 pass
             log.warning("Файл %s не разобран (%s). Перенесён в _failed.", os.path.basename(f), e)
-        except BaseException as e:                    # noqa: BLE001 — ловим и SystemExit
+        except BaseException as e:  # noqa: BLE001 — ловим и SystemExit
             failed += 1
             try:
                 _move(f, failed_dir)
@@ -99,12 +113,29 @@ def sync_folder(folder):
 
 # Имена полей, которые встречаются в API разных касс/ОФД
 FIELD_ALIASES = {
-    "ts":      ["ts", "date", "datetime", "dateTime", "date_time", "timestamp", "created_at", "receipt_date"],
-    "receipt": ["receipt", "receipt_id", "receiptId", "id", "number", "fiscalDocNumber", "doc_number"],
-    "name":    ["name", "item", "product", "itemName", "product_name", "title"],
-    "qty":     ["qty", "quantity", "cnt", "count", "amount_qty"],
-    "price":   ["price", "unit_price", "pricePerUnit"],
-    "sum":     ["sum", "total", "amount", "sum_total"],
+    "ts": [
+        "ts",
+        "date",
+        "datetime",
+        "dateTime",
+        "date_time",
+        "timestamp",
+        "created_at",
+        "receipt_date",
+    ],
+    "receipt": [
+        "receipt",
+        "receipt_id",
+        "receiptId",
+        "id",
+        "number",
+        "fiscalDocNumber",
+        "doc_number",
+    ],
+    "name": ["name", "item", "product", "itemName", "product_name", "title"],
+    "qty": ["qty", "quantity", "cnt", "count", "amount_qty"],
+    "price": ["price", "unit_price", "pricePerUnit"],
+    "sum": ["sum", "total", "amount", "sum_total"],
     "payment": ["payment", "pay_type", "paymentType", "payment_type"],
 }
 
@@ -122,14 +153,33 @@ def _json_to_csv(rows, path):
     recognised = 0
     with open(path, "w", encoding="utf-8", newline="") as fh:
         w = csv.writer(fh, delimiter=";")
-        w.writerow(["Дата и время", "Номер чека", "Наименование", "Количество", "Цена", "Сумма", "Тип оплаты"])
+        w.writerow(
+            [
+                "Дата и время",
+                "Номер чека",
+                "Наименование",
+                "Количество",
+                "Цена",
+                "Сумма",
+                "Тип оплаты",
+            ]
+        )
         for x in rows:
             name = _pick(x, "name")
             ts = _pick(x, "ts")
             if name and ts:
                 recognised += 1
-            w.writerow([ts, _pick(x, "receipt"), name, _pick(x, "qty") or 1,
-                        _pick(x, "price"), _pick(x, "sum"), _pick(x, "payment")])
+            w.writerow(
+                [
+                    ts,
+                    _pick(x, "receipt"),
+                    name,
+                    _pick(x, "qty") or 1,
+                    _pick(x, "price"),
+                    _pick(x, "sum"),
+                    _pick(x, "payment"),
+                ]
+            )
     return recognised
 
 
@@ -156,8 +206,17 @@ def sync_http(url, token):
         log.warning("API вернул не JSON (первые 200 символов): %s", raw[:200])
         return {"items": 0, "dupes": 0, "error": "ответ не JSON"}
 
-    rows = data if isinstance(data, list) else (
-        data.get("items") or data.get("receipts") or data.get("data") or data.get("results") or [])
+    rows = (
+        data
+        if isinstance(data, list)
+        else (
+            data.get("items")
+            or data.get("receipts")
+            or data.get("data")
+            or data.get("results")
+            or []
+        )
+    )
     if not isinstance(rows, list):
         rows = []
     fd, path = tempfile.mkstemp(suffix=".csv")
@@ -167,19 +226,37 @@ def sync_http(url, token):
         log.info("API вернул %s записей, распознано %s", len(rows), recognised)
         if not recognised:
             if rows:
-                log.warning("Поля API не распознаны. Пример записи: %s. "
-                            "Добавьте имена полей в FIELD_ALIASES в coffeeos/sync.py", str(rows[0])[:200])
-            return {"items": 0, "dupes": 0, "received": len(rows), "error": "поля не распознаны" if rows else None}
+                log.warning(
+                    "Поля API не распознаны. Пример записи: %s. "
+                    "Добавьте имена полей в FIELD_ALIASES в coffeeos/sync.py",
+                    str(rows[0])[:200],
+                )
+            return {
+                "items": 0,
+                "dupes": 0,
+                "received": len(rows),
+                "error": "поля не распознаны" if rows else None,
+            }
         res = import_csv(path, reset=False)
-        out = {"items": res["items"], "dupes": res.get("dupes", 0),
-               "updated": res.get("updated", 0), "received": len(rows)}
+        out = {
+            "items": res["items"],
+            "dupes": res.get("dupes", 0),
+            "updated": res.get("updated", 0),
+            "received": len(rows),
+        }
         # Записи пришли и поля распознались, но ни одна строка не легла в базу
         # из-за непонятной даты — это поломка, а не «всё в порядке». Раньше
         # автозагрузка в таком случае молчала, а выручка просто не поступала.
-        if (not res["items"] and not res.get("dupes") and not res.get("updated")
-                and res.get("bad_date")):
-            out["error"] = (f"дата в ответе API не распознана ({res['bad_date']} строк) — "
-                            f"проверьте формат поля даты")
+        if (
+            not res["items"]
+            and not res.get("dupes")
+            and not res.get("updated")
+            and res.get("bad_date")
+        ):
+            out["error"] = (
+                f"дата в ответе API не распознана ({res['bad_date']} строк) — "
+                f"проверьте формат поля даты"
+            )
             log.warning("Автозагрузка: %s", out["error"])
         return out
     except ImportError_ as e:

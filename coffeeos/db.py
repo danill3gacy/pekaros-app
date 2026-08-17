@@ -20,6 +20,7 @@
    может кончиться, круассан — может. Только второе участвует в заказе витрины
    и в поиске упущенной выручки.
 """
+
 import logging
 import sqlite3
 
@@ -140,13 +141,15 @@ def get_conn():
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA busy_timeout=30000")
     try:
-        conn.execute("PRAGMA journal_mode=WAL")   # читатели не блокируются писателем
+        conn.execute("PRAGMA journal_mode=WAL")  # читатели не блокируются писателем
     except sqlite3.Error as e:
         # на сетевых дисках WAL недоступен — это не повод падать, но и молчать
         # об этом не надо: без WAL бот и сайт будут блокировать друг друга
         logging.getLogger("coffeeos.db").warning(
             "Режим WAL недоступен (%s) — при одновременной работе бота и сайта "
-            "возможны задержки на записи.", e)
+            "возможны задержки на записи.",
+            e,
+        )
     return conn
 
 
@@ -177,16 +180,19 @@ def init_db(conn=None, seed_reference=True):
     conn = conn or get_conn()
     had_tables = _tables(conn)
     conn.executescript(SCHEMA)
-    _migrate(conn, had_tables)          # колонки — до индексов по ним
+    _migrate(conn, had_tables)  # колонки — до индексов по ним
     conn.executescript(INDEXES)
     conn.execute("INSERT OR IGNORE INTO venues(id,name) VALUES(1,?)", (config.VENUE_NAME,))
-    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_extid "
-                 "ON receipts(ext_id) WHERE ext_id IS NOT NULL")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_extid "
+        "ON receipts(ext_id) WHERE ext_id IS NOT NULL"
+    )
     conn.commit()
     if seed_reference:
         # справочники (типовые ингредиенты, рецепты, регламент обслуживания)
         # наполняются один раз и дальше правятся владельцем
         from . import reference
+
         reference.ensure_loaded(conn)
     if own:
         conn.close()
@@ -206,9 +212,15 @@ def _migrate(conn, had_tables):
     _add_column(conn, "receipts", "guest", "TEXT")
     _add_column(conn, "receipts", "channel", "TEXT")
     # позиции: разбор напитка
-    for col, definition in (("base", "TEXT"), ("kind", "TEXT"), ("size", "TEXT"),
-                            ("volume_ml", "INTEGER"), ("milk", "TEXT"),
-                            ("mods", "TEXT"), ("iced", "INTEGER DEFAULT 0")):
+    for col, definition in (
+        ("base", "TEXT"),
+        ("kind", "TEXT"),
+        ("size", "TEXT"),
+        ("volume_ml", "INTEGER"),
+        ("milk", "TEXT"),
+        ("mods", "TEXT"),
+        ("iced", "INTEGER DEFAULT 0"),
+    ):
         _add_column(conn, "receipt_items", col, definition)
     # списания: единица измерения и вид
     _add_column(conn, "waste", "src", "TEXT NOT NULL DEFAULT 'user'")
@@ -223,16 +235,21 @@ def _migrate(conn, had_tables):
             # смысл это «стоит на витрине с конечным запасом»
             conn.execute(
                 "INSERT OR IGNORE INTO menu_items(name,category,kind,stocked) "
-                "SELECT name, category, 'food', COALESCE(produced,0) FROM product_meta")
+                "SELECT name, category, 'food', COALESCE(produced,0) FROM product_meta"
+            )
     # план выпечки -> заказ витрины
     if "plan_override" in had_tables:
-        conn.execute("INSERT OR IGNORE INTO case_order_override(date,name,qty) "
-                     "SELECT date,name,qty FROM plan_override")
+        conn.execute(
+            "INSERT OR IGNORE INTO case_order_override(date,name,qty) "
+            "SELECT date,name,qty FROM plan_override"
+        )
 
 
 def kv_set(conn, key, value):
-    conn.execute("INSERT INTO kv(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                 (key, str(value)))
+    conn.execute(
+        "INSERT INTO kv(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (key, str(value)),
+    )
     conn.commit()
 
 

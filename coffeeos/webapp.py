@@ -2,6 +2,7 @@
 
 Запуск:  uvicorn coffeeos.webapp:app --host 0.0.0.0 --port 8000
 """
+
 import base64
 import binascii
 import os
@@ -29,9 +30,11 @@ app = FastAPI(title="КофейняОС API", docs_url=None, redoc_url=None, ope
 
 
 def _unauthorized():
-    return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                         detail="Нужен логин и пароль",
-                         headers={"WWW-Authenticate": 'Basic charset="UTF-8"'})
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Нужен логин и пароль",
+        headers={"WWW-Authenticate": 'Basic charset="UTF-8"'},
+    )
 
 
 def auth(request: Request):
@@ -39,7 +42,7 @@ def auth(request: Request):
     Заголовок разбираем сами и декодируем как UTF-8: стандартный разбор в
     библиотеке принимает только латиницу, из-за чего русский пароль не работал."""
     if not config.WEB_PASSWORD:
-        return True                       # пароль не задан — доступ открыт
+        return True  # пароль не задан — доступ открыт
     header = request.headers.get("Authorization", "")
     scheme, _, param = header.partition(" ")
     if scheme.lower() != "basic" or not param:
@@ -51,10 +54,10 @@ def auth(request: Request):
     try:
         decoded = raw.decode("utf-8")
     except UnicodeDecodeError:
-        decoded = raw.decode("latin-1")   # некоторые браузеры шлют так
+        decoded = raw.decode("latin-1")  # некоторые браузеры шлют так
     user, _, password = decoded.partition(":")
 
-    def eq(a, b):                          # сравнение байтами: пароль может быть кириллицей
+    def eq(a, b):  # сравнение байтами: пароль может быть кириллицей
         return secrets.compare_digest(str(a).encode("utf-8"), str(b).encode("utf-8"))
 
     if not (eq(user, config.WEB_USER) and eq(password, config.WEB_PASSWORD)):
@@ -68,9 +71,11 @@ db.init_db()  # гарантируем, что таблицы есть, даже
 
 if not config.WEB_PASSWORD:
     import logging
+
     logging.getLogger("coffeeos.web").warning(
         "Сайт запущен БЕЗ пароля — данные кофейни увидит любой, кто знает адрес. "
-        "Задайте WEB_PASSWORD в .env для боевого сервера.")
+        "Задайте WEB_PASSWORD в .env для боевого сервера."
+    )
 
 
 @app.get("/api/health")
@@ -99,13 +104,17 @@ def api_summary(_=Depends(auth)):
         last = last_day_with_data(conn)
         s = analytics.sales_summary(conn, last)
         prev = analytics.sales_summary(conn, last - timedelta(days=7))
-        delta = ((s["revenue"] - prev["revenue"]) / prev["revenue"] * 100) \
-            if prev["revenue"] else 0
+        delta = ((s["revenue"] - prev["revenue"]) / prev["revenue"] * 100) if prev["revenue"] else 0
         data = {
-            "venue": config.VENUE_NAME, "date": s["date"],
-            "revenue": round(s["revenue"]), "checks": s["checks"],
-            "avg_check": round(s["avg"]), "revenue_delta_pct": round(delta, 1),
-            "cups": round(s["cups"]), "cash": round(s["cash"]), "card": round(s["card"]),
+            "venue": config.VENUE_NAME,
+            "date": s["date"],
+            "revenue": round(s["revenue"]),
+            "checks": s["checks"],
+            "avg_check": round(s["avg"]),
+            "revenue_delta_pct": round(delta, 1),
+            "cups": round(s["cups"]),
+            "cash": round(s["cash"]),
+            "card": round(s["card"]),
             "top": analytics.top_positions(conn, last, 6),
             "by_category": analytics.revenue_by_category(conn, last),
             "hourly": analytics.hourly(conn, last),
@@ -173,8 +182,14 @@ async def api_case_approve(request: Request, _=Depends(auth)):
     finally:
         conn.close()
     sent = _send_to_staff(plan["text"])
-    return JSONResponse({"ok": True, "target": plan["target"],
-                         "approved_at": config.now().strftime("%H:%M"), "sent_to": sent})
+    return JSONResponse(
+        {
+            "ok": True,
+            "target": plan["target"],
+            "approved_at": config.now().strftime("%H:%M"),
+            "sent_to": sent,
+        }
+    )
 
 
 @app.post("/api/order/send")
@@ -194,10 +209,11 @@ async def api_order_send(request: Request, _=Depends(auth)):
 
 def _as_date(value):
     from datetime import date as _d
+
     try:
         y, m, dd = map(int, str(value)[:10].split("-"))
         return _d(y, m, dd)
-    except Exception:                                   # noqa: BLE001
+    except Exception:  # noqa: BLE001
         raise HTTPException(status_code=400, detail="неверная дата")
 
 
@@ -207,14 +223,14 @@ def _send_telegram(chat_id, text):
     import json as _json
     import logging
     import urllib.request
+
     url = f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage"
     payload = _json.dumps({"chat_id": chat_id, "text": text}).encode("utf-8")
-    req = urllib.request.Request(url, data=payload,
-                                 headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=10):
             return 1
-    except Exception as e:                              # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         logging.getLogger("coffeeos.web").warning("send to %s failed: %s", chat_id, e)
         return 0
 
@@ -226,17 +242,20 @@ def _send_to_staff(text):
     import json as _json
     import logging
     import urllib.request
+
     sent = 0
     url = f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage"
     for cid in config.STAFF_CHAT_IDS:
-        payload = _json.dumps({"chat_id": cid, "text": text,
-                               "parse_mode": "Markdown"}).encode("utf-8")
-        req = urllib.request.Request(url, data=payload,
-                                     headers={"Content-Type": "application/json"})
+        payload = _json.dumps({"chat_id": cid, "text": text, "parse_mode": "Markdown"}).encode(
+            "utf-8"
+        )
+        req = urllib.request.Request(
+            url, data=payload, headers={"Content-Type": "application/json"}
+        )
         try:
             with urllib.request.urlopen(req, timeout=10):
                 sent += 1
-        except Exception as e:                          # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             logging.getLogger("coffeeos.web").warning("send to %s failed: %s", cid, e)
     return sent
 
@@ -247,5 +266,7 @@ def live(_=Depends(auth)):
         with open(DASHBOARD_FILE, encoding="utf-8") as fh:
             return fh.read()
     except FileNotFoundError:
-        return ("<h1>КофейняОС</h1><p>Файл дашборда live.html не найден рядом с проектом. "
-                "Данные доступны в <code>/api/summary</code>.</p>")
+        return (
+            "<h1>КофейняОС</h1><p>Файл дашборда live.html не найден рядом с проектом. "
+            "Данные доступны в <code>/api/summary</code>.</p>"
+        )
