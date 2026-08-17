@@ -157,8 +157,9 @@ def item_economics(conn, days=56, upto=None, kinds=(menu.KIND_DRINK, menu.KIND_F
     Усреднять «латте вообще» нельзя, иначе продажа на овсяном молоке спрячется
     в среднем и маржа окажется завышенной.
     """
-    from .analytics import last_day_with_data, day_str
     from datetime import timedelta
+
+    from .analytics import day_str, last_day_with_data
     upto = upto or last_day_with_data(conn)
     start = upto - timedelta(days=days - 1)
     recipes = recipe_rows(conn)
@@ -239,6 +240,7 @@ def totals(conn, days=56, upto=None):
     разделе «Маржа» стояла сумма на несколько процентов меньше кассовой.
     """
     from datetime import timedelta
+
     from .analytics import day_str, last_day_with_data
     upto = upto or last_day_with_data(conn)
     start = upto - timedelta(days=days - 1)
@@ -325,8 +327,9 @@ def milk_economics(conn, days=56, upto=None):
     закупочная цена с тех пор выросла вдвое. Проверяется это ровно так:
     сравнить маржу одного и того же напитка на разном молоке.
     """
-    from .analytics import last_day_with_data, day_str
     from datetime import timedelta
+
+    from .analytics import day_str, last_day_with_data
     upto = upto or last_day_with_data(conn)
     start = upto - timedelta(days=days - 1)
     recipes, ing_map = recipe_rows(conn), ingredients(conn)

@@ -1,0 +1,17 @@
+# Установка один раз:  pip install pre-commit && pre-commit install
+# После этого ruff и mypy запускаются на каждом git commit.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: system
+        types: [python]
+        pass_filenames: false

@@ -22,6 +22,7 @@
 """
 import logging
 import sqlite3
+
 from . import config
 
 SCHEMA = """

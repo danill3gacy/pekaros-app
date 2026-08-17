@@ -6,17 +6,30 @@
 
 Запуск:  python -m coffeeos bot
 """
-import logging
-import re
 import datetime as dt
-from zoneinfo import ZoneInfo
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
-from telegram.ext import (Application, CommandHandler, MessageHandler, CallbackQueryHandler,
-                          ContextTypes, filters)
-from . import config, db, orchestrator, health
+import logging
 
 # ---------- логирование ----------
 from logging.handlers import RotatingFileHandler
+from zoneinfo import ZoneInfo
+
+from telegram import (
+    BotCommand,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
+    Update,
+)
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
+
+from . import config, db, health, orchestrator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -388,6 +401,7 @@ async def closing_reminder(ctx: ContextTypes.DEFAULT_TYPE):
 
 async def auto_sync(ctx: ContextTypes.DEFAULT_TYPE):
     import asyncio
+
     from . import sync
     try:
         # в отдельном потоке — чтобы загрузка большого файла не подвешивала бота
@@ -400,6 +414,7 @@ async def auto_sync(ctx: ContextTypes.DEFAULT_TYPE):
 
 async def daily_backup(ctx: ContextTypes.DEFAULT_TYPE):
     import asyncio
+
     from . import backup
     try:
         res = await asyncio.to_thread(backup.make_backup)

@@ -23,12 +23,13 @@
 на ручном вводе, перестаёт работать через месяц вместе с человеком, которого
 научили.
 """
-from datetime import date, timedelta
 from collections import defaultdict
+from datetime import date, timedelta
 from statistics import NormalDist
+from typing import Any
 
 from . import config, economics, menu
-from .analytics import day_str, last_day_with_data, operating_days
+from .analytics import day_str, last_day_with_data
 
 _ND = NormalDist()
 
@@ -168,7 +169,8 @@ def _mills(z):
     return _ND.pdf(z) / tail
 
 
-_DEMAND_CACHE = {}     # (состояние базы, день недели, окно, upto) -> готовая оценка
+# (состояние базы, день недели, окно, upto) -> готовая оценка
+_DEMAND_CACHE: dict[tuple, Any] = {}
 
 
 def demand_stats(conn, target_weekday, days=56, upto=None):

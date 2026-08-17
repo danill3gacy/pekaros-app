@@ -331,6 +331,7 @@ def milk_waste(conn, days=56, upto=None):
     обычное дело, а за месяц набегает заметная сумма.
     """
     from datetime import timedelta
+
     from .analytics import last_day_with_data
     upto = upto or last_day_with_data(conn)
     start = upto - timedelta(days=days - 1)

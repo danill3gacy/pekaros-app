@@ -43,7 +43,7 @@ def main():
         print(health.status_text())
     elif cmd in ("llm", "ai", "ollama"):
         # быстрая проверка связи с моделью: «ИИ работает или нет и что делать»
-        from . import llm, config
+        from . import config, llm
         p = llm.ping()
         print(f"Сервер модели: {config.LLM_BASE_URL or 'облако OpenAI'}")
         print(f"Модель:        {config.LLM_MODEL}")

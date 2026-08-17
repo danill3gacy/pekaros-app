@@ -15,10 +15,10 @@
 Всё, чего в данных нет, помечается как «не считается на этих данных», а не
 заполняется нулями.
 """
-from datetime import date, timedelta
 from collections import defaultdict
+from datetime import date, timedelta
 
-from . import config, menu
+from . import config
 
 ITEM_KEY = "COALESCE(i.base, i.name)"      # позиция меню: разобранное имя, иначе как в чеке
 

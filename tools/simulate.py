@@ -35,8 +35,8 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coffeeos import catalog, costing, db, demand, economics, supply   # noqa: E402
-from coffeeos.analytics import last_day_with_data, day_str             # noqa: E402
+from coffeeos import catalog, costing, db, demand, economics, supply  # noqa: E402
+from coffeeos.analytics import day_str, last_day_with_data  # noqa: E402
 
 # --- независимая модель спроса: кофейня в деловом квартале с обеденным пиком ---
 HOUR_WEIGHTS = {7: 0.25, 8: 0.55, 9: 0.60, 10: 0.62, 11: 0.70, 12: 0.95, 13: 1.00,
@@ -252,10 +252,10 @@ def run_supply_check(stream, horizon=7):
     recipes = costing.recipe_rows(conn)
     watched = [n for n, r in ing.items()
                if r["category"] in ("coffee", "dairy", "syrup", "packaging")]
-    stock = {n: 0.0 for n in watched}
+    stock = dict.fromkeys(watched, 0.0)
     incoming = {}          # день прибытия -> {ингредиент: количество}
-    stockouts = {n: 0 for n in watched}
-    ordered_packs = {n: 0 for n in watched}
+    stockouts = dict.fromkeys(watched, 0)
+    ordered_packs = dict.fromkeys(watched, 0)
     rid = 0
 
     # стартовый запас: 10 дней ожидаемого расхода (кофейня открылась не пустой)

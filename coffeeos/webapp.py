@@ -11,8 +11,18 @@ from datetime import timedelta
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import (analytics, catalog, config, costing, db, demand, health,
-               orchestrator, staffing, supply)
+from . import (
+    analytics,
+    catalog,
+    config,
+    costing,
+    db,
+    demand,
+    health,
+    orchestrator,
+    staffing,
+    supply,
+)
 from .analytics import last_day_with_data
 
 app = FastAPI(title="КофейняОС API", docs_url=None, redoc_url=None, openapi_url=None)

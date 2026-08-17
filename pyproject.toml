@@ -1,0 +1,21 @@
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+# Храповик: правила ниже выключены, чтобы внедрение шло без большого рефакторинга.
+# Убираем по одному — каждый раз это отдельный небольшой коммит.
+ignore = ["E501", "B007", "B008", "B904", "B905", "SIM105", "SIM115", "UP031"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["coffeeos"]
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+# Следующие ступени строгости — включать по одной, когда предыдущая держится:
+# disallow_untyped_defs = true
+# disallow_any_generics = true
+# strict = true

@@ -6,9 +6,9 @@
 """
 import re
 from datetime import timedelta
+from typing import Any
 
-from . import (analytics, catalog, config, costing, demand, llm, menu,
-               staffing, supply)
+from . import analytics, catalog, config, costing, demand, llm, menu, staffing, supply
 from .analytics import fmt, last_day_with_data
 from .menu import CATEGORY_EMOJI
 
@@ -1020,7 +1020,7 @@ def _item_money_answer(conn, name):
 
 
 # ---------- срез данных для ИИ ----------
-_DIGEST_CACHE = {}
+_DIGEST_CACHE: dict[tuple, Any] = {}
 
 
 def data_digest(conn, days=56):

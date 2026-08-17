@@ -3,9 +3,10 @@
 Бот периодически проверяет, обновляются ли данные, и сам предупреждает
 владельца, если что-то не так — чтобы он узнавал о проблеме раньше клиента.
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
-from . import db, config
+
+from . import config, db
 
 
 def _now():

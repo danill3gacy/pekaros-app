@@ -23,9 +23,7 @@
 from collections import defaultdict
 from datetime import timedelta
 
-from . import config
-from .analytics import (day_str, hour_breakdown, last_day_with_data,
-                        avg_check_window, WEEKDAY_SHORT)
+from .analytics import WEEKDAY_SHORT, avg_check_window, day_str, hour_breakdown, last_day_with_data
 
 # Какую долю от собственного рекорда считаем работой «на пределе».
 SATURATION = 0.80

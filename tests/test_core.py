@@ -23,9 +23,21 @@ os.environ["OPENAI_API_KEY"] = ""
 os.environ["LLM_BASE_URL"] = ""
 os.environ["LLM_API_KEY"] = ""
 
-from coffeeos import (analytics, catalog, config, costing, db, demand,  # noqa: E402
-                      health, menu, orchestrator, reference, seed, staffing,
-                      supply)
+from coffeeos import (  # noqa: E402
+    analytics,
+    catalog,
+    config,
+    costing,
+    db,
+    demand,
+    health,
+    menu,
+    orchestrator,
+    reference,
+    seed,
+    staffing,
+    supply,
+)
 
 SEED_DAYS = 56
 SEED_CHECKS = 150
@@ -223,9 +235,9 @@ def test_alternative_milk_costs_more():
 def test_large_drink_costs_more_than_small():
     conn = db.get_conn()
     s = costing.cost_of(conn, "Латте", "S")
-    l = costing.cost_of(conn, "Латте", "L")
+    large = costing.cost_of(conn, "Латте", "L")
     conn.close()
-    assert l["cost"] > s["cost"]
+    assert large["cost"] > s["cost"]
 
 
 def test_in_house_service_saves_disposables():
@@ -652,7 +664,6 @@ def test_perishables_are_not_ordered_for_two_weeks():
     milk = next(i for i in rep["items"] if i["name"] == "Молоко обычное")
     beans = next(i for i in rep["items"] if i["name"] == "Зерно кофе")
     conn.close()
-    shelf = conn_shelf = None
     assert milk["need"] < milk["per_day"] * 10, "скоропорт заказан на слишком долгий срок"
     assert beans["need"] > beans["per_day"] * 15, "у зерна срока годности нет, ограничивать нечего"
 
@@ -1214,6 +1225,7 @@ def test_stock_confirmation_names_the_unit():
 def test_busy_database_gets_a_human_explanation():
     """Занятая база — это очередь, а не поломка, и сказать надо именно так."""
     import sqlite3
+
     from coffeeos import bot
     busy = bot._error_text(sqlite3.OperationalError("database is locked"))
     broken = bot._error_text(sqlite3.DatabaseError("file is not a database"))

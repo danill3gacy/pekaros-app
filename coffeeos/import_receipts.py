@@ -12,14 +12,14 @@
     python -m coffeeos import путь/к/выгрузке.csv [--reset]
 """
 import csv
-import sys
-import re
 import hashlib
+import re
+import sys
 from collections import defaultdict
 from datetime import datetime
-from . import db
+
 from . import catalog as catalog_mod
-from .menu import is_service_item
+from . import db
 
 
 class ImportError_(Exception):

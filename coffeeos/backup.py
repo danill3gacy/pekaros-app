@@ -7,11 +7,12 @@
 Копия снимается штатным механизмом SQLite (не простым копированием файла),
 поэтому безопасна даже если в этот момент идёт запись.
 """
-import os
 import glob
-import sqlite3
 import logging
+import os
+import sqlite3
 from datetime import datetime
+
 from . import config
 
 log = logging.getLogger("coffeeos.backup")

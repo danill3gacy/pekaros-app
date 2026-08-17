@@ -28,7 +28,7 @@
 import random
 from datetime import datetime, timedelta
 
-from . import config, db, catalog, menu
+from . import catalog, config, db, menu
 
 # ---------- меню демо-кофейни ----------
 # (имя, вид, цена S/M/L либо одна цена, вес спроса)

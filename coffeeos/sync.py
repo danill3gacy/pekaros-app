@@ -9,19 +9,19 @@
 Дубли исключаются на уровне импорта: чек опознаётся по (дата + номер чека), а
 без номера — по содержимому. Повторная загрузка тех же данных безопасна.
 """
-import os
-import glob
-import shutil
-import json
 import csv
-import time
-import tempfile
-import urllib.request
-import urllib.error
+import glob
+import json
 import logging
-from datetime import datetime
+import os
+import shutil
+import tempfile
+import time
+import urllib.error
+import urllib.request
+
 from . import config, db
-from .import_receipts import import_csv, ImportError_
+from .import_receipts import ImportError_, import_csv
 
 log = logging.getLogger("coffeeos.sync")
 
@@ -70,7 +70,7 @@ def sync_folder(folder):
             # одними исправлениями не должен уезжать в карантин.
             if not res["items"] and not res.get("dupes") and not res.get("updated"):
                 # ничего не распознано — в карантин, чтобы можно было разобраться
-                dst = _move(f, failed_dir)
+                _move(f, failed_dir)
                 failed += 1
                 log.warning("Из файла %s не распознано ни одной позиции "
                             "(битых строк: %s, непонятных дат: %s). Перенесён в _failed.",
