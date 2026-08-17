@@ -1,3 +1,6 @@
 # Коммиты, которые меняли только форматирование — git blame их пропускает.
 # Подключить один раз:
 #   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Формат по ruff, строгая типизация, E501 в проверках
+24f42ab97a80cab9cf40bdf3623bebfed8def5ef
