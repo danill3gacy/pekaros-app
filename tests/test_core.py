@@ -1767,12 +1767,15 @@ def test_no_bakery_leftovers_in_product_text():
     # Старое имя не должно остаться нигде, включая код.
     for t in facing + [_all_sources()]:
         assert "ПекарьОС" not in t
+        assert "BakerOS" not in t
     # А вот пекарные термины в тексте, который видит владелец, — недопустимы.
     # В коде упоминание старой таблицы допустимо: миграция обязана объяснить,
     # откуда она переносит данные.
     for t in facing:
         low = t.lower()
-        for ghost in ("план выпечки", "печём", "продавец", "пекарьос"):
+        # README переведён на английский — те же призраки ловятся и по-английски.
+        for ghost in ("план выпечки", "печём", "продавец", "пекарьос",
+                      "baking plan", "we bake", "salesperson", "bakeros"):
             assert ghost not in low, f"в интерфейсе осталось «{ghost}»"
     # На дашборде пекарни нет вообще — там только цифры кофейни.
     # (В README слово уместно: там объясняется, почему в кофейне
@@ -1784,11 +1787,16 @@ def test_readme_promises_match_the_code():
     root = _project_root()
     docs = open(os.path.join(root, "README.md"), encoding="utf-8").read().lower()
     src = _all_sources().lower()
+    # README на английском, поэтому обещания ловятся и по-русски, и по-английски.
     for phrase, needle in (
         ("attach-rate", "attach_rate"),
+        ("attach rate", "attach_rate"),
         ("фудкост", "foodcost"),
+        ("food cost", "foodcost"),
         ("заявка поставщику", "order_draft"),
+        ("supplier request", "order_draft"),
         ("витрин", "case_order"),
+        ("display case", "case_order"),
     ):
         if phrase in docs:
             assert needle in src, f"README обещает «{phrase}», а кода нет"

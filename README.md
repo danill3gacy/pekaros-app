@@ -1,194 +1,188 @@
-# ☕ КофейняОС — операционная система кофейни
+# ☕ CoffeeOS — an operating system for a coffee shop
 
 [![tests](https://github.com/danill3gacy/pekaros-app/actions/workflows/ci.yml/badge.svg)](https://github.com/danill3gacy/pekaros-app/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![tests: 144](https://img.shields.io/badge/tests-144-success)](tests/test_core.py)
 
-Живая система для одной точки: **Telegram-бот + база данных + расчёты по чекам
-+ утренняя авто-сводка + веб-дашборд на реальных данных**.
+A live system for a single site: **a Telegram bot + a database + calculations driven by till
+receipts + an automatic morning briefing + a web dashboard on real data**.
 
-## Ключевые цифры
+## Headline numbers
 
-| Показатель | Значение |
+| Measure | Value |
 |---|---|
-| Эффект на симуляции 150 дней × 5 независимых потоков гостей | **+5,1 тыс. ₽/мес** (диапазон +2,6…+7,2) к решениям владельца «по вчерашнему дню» |
-| Недопродажа из-за пустой витрины | **457 → 334 шт/мес** (−27%) |
-| Уровень сервиса (гость нашёл то, за чем пришёл) | **33% → 47%** |
-| Альтернатива «среднее за 2 недели в Excel» | **−53 тыс. ₽/мес** — систематически недозаказывает |
-| Работа без ручного ввода списаний | эффект сохраняется: **+5,2 тыс. ₽/мес** |
-| Кодовая база | ~9 100 строк Python, 23 модуля |
-| Тесты | **144** в CI на Python 3.11 и 3.12 |
-| Настройка владельцем | только цены на сырьё, **~5 минут разово** — рецептура поставляется готовой |
+| Effect in a 150-day simulation × 5 independent guest streams | **+₽5.1k/month** (range +2.6…+7.2) against an owner deciding "by yesterday" |
+| Sales lost to an empty display case | **457 → 334 units/month** (−27%) |
+| Service level (the guest found what they came for) | **33% → 47%** |
+| The "two-week average in a spreadsheet" alternative | **−₽53k/month** — it systematically under-orders |
+| Running with no manual waste entry at all | the effect holds: **+₽5.2k/month** |
+| Codebase | ~9,100 lines of Python, 23 modules |
+| Tests | **144**, in CI on Python 3.11 and 3.12 |
+| Setup by the owner | ingredient prices only, **~5 minutes, once** — the recipe book ships ready |
 
-> Числа получены на симуляторе с **независимой** моделью спроса — другой профиль
-> часов, другой недельный ритм, сезонный дрейф и всплески. Он способен показать,
-> что продукт бесполезен, и один раз уже показал (CHANGELOG 5.0.0).
-> Воспроизводится: `python tools/simulate.py --days 150 --seeds 5 --supply`.
+> The figures come from a simulator with an **independent** demand model — a different hourly
+> profile, a different weekly rhythm, seasonal drift and spikes. It is capable of showing that the
+> product is useless, and it has done so once already (CHANGELOG 5.0.0).
+> Reproduce it with: `python tools/simulate.py --days 150 --seeds 5 --supply`.
 
-## Задача
+## The problem
 
-Касса показывает оборот, а не деньги. Оборот не отвечает ни на один вопрос, от
-которого зависит прибыль: сколько вы зарабатываете на конкретной чашке, сколько
-теряете на пустой витрине и утренней очереди, когда именно закончится зерно.
-Ушедших гостей в кассе нет по определению, а наценку за альтернативное молоко
-поставили один раз и с тех пор не трогали.
+The till reports turnover, not money. Turnover answers none of the questions profit actually
+depends on: how much you make on a particular cup, how much you lose to an empty display case and
+a morning queue, and exactly when the beans will run out. Guests who walked away are by definition
+absent from the till, and the surcharge for alternative milk was set once and never touched again.
 
-## Решение
+One system per site: **a Telegram bot + SQLite + calculations from receipts + an automatic morning
+briefing + a web dashboard**. All four questions are answered from the same data — the receipts —
+with no technical recipe cards and no manual stock-keeping.
 
-Одна система на точку: **Telegram-бот + SQLite + расчёты по чекам + утренняя
-авто-сводка + веб-дашборд**. Все четыре вопроса считаются по одним и тем же
-данным — по чекам, без тех.карт и без ручного учёта.
-
-| Контур | Что даёт |
+| Area | What it gives you |
 |---|---|
-| Экономика чашки | Себестоимость и маржа каждой позиции из чеков и цен на сырьё |
-| Витрина | Заказ на завтра с учётом того, что продажи урезаны наличием |
-| Закупка | Заявка поставщику: «в четверг кончится зерно, закажи 14 кг сегодня» |
-| Смена | Загрузка по часам и attach-rate — диагностика, а не прогноз |
-| Интерфейс | Бот (10 команд, ввод одной строкой), дашборд, утренняя сводка, бэкапы |
+| Cup economics | Cost and margin for every item, from receipts and ingredient prices |
+| Display case | Tomorrow's order, allowing for sales having been capped by availability |
+| Purchasing | A supplier request: "you run out of beans on Thursday, order 14 kg today" |
+| Shift | Load by hour and attach rate — diagnostics, not a forecast |
+| Interface | The bot (10 commands, one-line entry), the dashboard, the morning briefing, backups |
 
-**Почему это вообще считается.** Между мукой и багетом стоят тесто, расстойка и
-рука пекаря — расход из чеков не восстановить. Между зерном и латте не стоит
-ничего: рецепт постоянен, поэтому расход и себестоимость выводятся из продаж.
+**Why this can be computed at all.** Between flour and a baguette stand dough, proofing and the
+baker's hands — consumption cannot be recovered from receipts. Between beans and a latte stands
+nothing: the recipe is constant, so consumption and cost follow from sales.
 
-## Инженерные решения
+## Engineering decisions
 
-- **Продукт не верит себе на слово.** Симулятор с независимой моделью спроса —
-  часть поставки, а не маркетинговый слайд; его задача — опровергать.
-- **Устойчивость к эксплуатации.** Система работает так же, если списания не
-  вводят никогда. То, что держится на ежевечернем ручном вводе, умирает через
-  месяц вместе с обученным бариста.
-- **Прогноз отделён от диагностики.** Заказ витрины и заявка поставщику —
-  проверяемый прогноз. Маржа, фудкост, attach-rate — диагностика: они показывают
-  владельцу то, чего он не видел, а решение принимает он.
-- **Автономность.** LLM опционален, включая локальную бесплатную модель;
-  без ключей и без интернета продукт работает целиком.
+- **The product does not take its own word for it.** The simulator with its independent demand
+  model ships as part of the product, not as a marketing slide; its job is to refute.
+- **Robustness in real operation.** The system performs the same if waste is never entered at all.
+  Anything resting on a nightly manual entry dies within a month, along with the barista trained
+  to do it.
+- **Forecast is kept separate from diagnostics.** The display-case order and the supplier request
+  are a testable forecast. Margin, food cost and attach rate are diagnostics: they show the owner
+  what they could not see, and the owner makes the call.
+- **Autonomy.** The LLM is optional, including a free local model; with no keys and no internet the
+  product works in full.
 
-## Стек
+## Stack
 
-Python 3.11, SQLite (WAL), python-telegram-bot, FastAPI/uvicorn. Установка одной
-командой (`install.sh`), автозагрузка чеков, systemd-юниты для 24/7, бэкапы.
+Python 3.11, SQLite (WAL), python-telegram-bot, FastAPI/uvicorn. One-command install
+(`install.sh`), automatic receipt loading, systemd units for 24/7 operation, backups.
 
-## Проверка утверждений: не верьте на слово
+## Testing the claims: don't take our word for it
 
-Утверждение, которое нельзя опровергнуть, ничего не стоит. Поэтому в поставке
-есть симулятор с **независимой** моделью спроса — другой профиль часов, другой
-недельный ритм, сезонный дрейф и всплески. Он способен показать, что продукт
-бесполезен, и один раз уже показал (см. CHANGELOG 5.0.0).
+A claim you cannot refute is worth nothing. So the product ships with a simulator built on an
+**independent** demand model — a different hourly profile, a different weekly rhythm, seasonal
+drift and spikes. It is capable of showing that the product is useless, and it has done so once
+already (see CHANGELOG 5.0.0).
 
 ```bash
 python tools/simulate.py --days 150 --seeds 5 --supply
 ```
 
-Что получается на 150 днях, усреднённых по 5 независимым потокам гостей:
+Over 150 days, averaged across 5 independent guest streams:
 
-| стратегия витрины | к «чутью владельца» | недопродано, шт/мес | уровень сервиса |
+| display-case strategy | vs the owner's own judgement | undersold, units/month | service level |
 |---|---|---|---|
-| среднее за 2 недели (табличка в Excel) | **−53 тыс. ₽/мес** | 946 | 10% |
-| чутьё владельца (как сейчас) | 0 | 457 | 33% |
-| КофейняОС | **+5,1 тыс. ₽/мес** (от +2,6 до +7,2) | 334 | 47% |
-| КофейняОС без ввода списаний | +5,2 тыс. ₽/мес | 328 | 48% |
+| two-week average (a spreadsheet) | **−₽53k/month** | 946 | 10% |
+| the owner's judgement (the status quo) | 0 | 457 | 33% |
+| CoffeeOS | **+₽5.1k/month** (from +2.6 to +7.2) | 334 | 47% |
+| CoffeeOS with no waste entry at all | +₽5.2k/month | 328 | 48% |
 
-Читать это надо так.
+Here is how to read that.
 
-**Табличка со средним хуже, чем ничего** — она систематически недозаказывает,
-потому что не знает, что продажи урезаны наличием. Это самая частая «система
-учёта» в кофейнях, и она стоит владельцу денег.
+**The spreadsheet average is worse than nothing** — it systematically under-orders, because it
+cannot know that sales were capped by availability. It is the most common "stock system" in coffee
+shops, and it costs the owner money.
 
-**Выигрыш КофейняОС над владельцем, который просто смотрит на вчера, —
-скромный: несколько тысяч рублей в месяц.** Мы намеренно не пишем красивую
-цифру. Главное здесь другое: недопродажа падает с 457 до 334 штук в месяц, а
-уровень сервиса растёт с 33% до 47% — то есть гость реже уходит без завтрака.
+**CoffeeOS's gain over an owner who simply looks at yesterday is modest: a few thousand roubles a
+month.** We deliberately do not print a prettier figure. What matters here is elsewhere: undersold
+units fall from 457 to 334 a month, and the service level rises from 33% to 47% — meaning the guest
+walks out without breakfast less often.
 
-**Последняя строка — самая важная для эксплуатации.** Она показывает, что
-система работает так же, если списания не вводят вообще никогда. Продукт,
-который держится на ежевечернем ручном вводе, перестаёт работать через месяц
-вместе с бариста, которого научили.
+**The last row is the most important one operationally.** It shows the system performs the same if
+waste is never entered at all. A product resting on a nightly manual entry stops working within a
+month, along with the barista who was trained to do it.
 
-**Чего симулятор НЕ доказывает.** Он проверяет заказ витрины и заявку
-поставщику — то, что можно смоделировать. Маржа, фудкост, attach-rate и
-загрузка смены — это **диагностика, а не прогноз**: они показывают владельцу
-то, чего он не видел, а решение принимает он. Обещать по ним прибавку было бы
-враньём.
+**What the simulator does NOT prove.** It tests the display-case order and the supplier request —
+the things that can be modelled. Margin, food cost, attach rate and shift load are **diagnostics,
+not a forecast**: they show the owner what they had not seen, and the owner makes the call.
+Promising an uplift on those would be a lie.
 
-Флаг `--supply` отдельно проверяет второе утверждение: если каждый день брать
-то, что заявка пометила «горит» или «скоро», кофейня не остаётся без зерна,
-молока и стаканов ни на один день.
+The `--supply` flag tests the second claim separately: if you order each day whatever the request
+marked "urgent" or "soon", the shop does not run out of beans, milk or cups on a single day.
 
 ---
 
-## Что умеет
+## What it does
 
-| Раздел | Что показывает |
+| Section | What it shows |
 |---|---|
-| **Маржа и меню** | себестоимость и маржа каждой позиции, фудкост, разбор меню на звёзды / лошадок / загадки / балласт |
-| **Молоко** | сколько вы зарабатываете на обычном и на растительном — и покрывает ли наценка разницу |
-| **Витрина на завтра** | сколько чего ставить, чтобы не остаться пустыми к полудню |
-| **Упущенная выручка** | сколько недополучено из-за того, что еда кончалась, и во сколько |
-| **Заявка поставщику** | расход зерна, молока, сиропов и стаканов по чекам; сколько и когда заказать |
-| **Еда к кофе** | attach-rate, разрыв между утром и днём, что реально берут вместе |
-| **Смена** | где вы упираетесь в потолок скорости и нужен ли второй бариста |
-| **Что пьют** | напитки, размеры, молоко, доля холодных и её сезонность |
-| **Списания** | витрина по ценникам и вылитое молоко по себестоимости — отдельно |
-| **Касса** | сверка нал/безнал, выручка по категориям |
-| **Обслуживание** | регламент кофемашины и помола: что пора сделать |
+| **Margin and menu** | Cost and margin per item, food cost, the menu split into stars / plowhorses / puzzles / dogs |
+| **Milk** | What you earn on dairy versus plant milk — and whether the surcharge covers the difference |
+| **Tomorrow's display case** | How much of what to put out so you are not empty by midday |
+| **Lost revenue** | How much was missed because food ran out, and at what time |
+| **Supplier request** | Consumption of beans, milk, syrups and cups from receipts; how much to order and when |
+| **Food with coffee** | Attach rate, the gap between morning and afternoon, what people actually buy together |
+| **Shift** | Where you hit your speed ceiling and whether a second barista is warranted |
+| **What people drink** | Drinks, sizes, milk, the share of cold drinks and its seasonality |
+| **Waste** | The display case at menu prices and poured-away milk at cost — kept separate |
+| **Till** | Cash/card reconciliation, revenue by category |
+| **Maintenance** | The espresso machine and grinder schedule: what is due |
 
-Утренняя сводка приходит в Telegram каждый день до открытия.
+The morning briefing arrives in Telegram every day before opening.
 
-**Умный ассистент:** владелец пишет боту вопрос человеческим языком — «какая
-маржа у рафа?», «на сколько хватит зерна?», «во сколько пик?», «почему по
-средам просадка?» — и получает ответ по своим данным. Частые вопросы бот
-считает сам мгновенно; всё нестандартное уходит в ИИ, которому передаётся срез
-всех данных кофейни (опционально; без ИИ работают частые вопросы и все кнопки).
+**The smart assistant:** the owner types a question to the bot in plain language — "what's the
+margin on a raf?", "how long will the beans last?", "when is the peak?", "why the dip on
+Wednesdays?" — and gets an answer from their own data. Common questions the bot computes itself,
+instantly; anything unusual goes to the AI, which is handed a slice of all the shop's data
+(optional; with no AI, the common questions and every button still work).
 
-**Боевые возможности:** самоконтроль здоровья (бот сам предупреждает, если
-данные перестали обновляться), ночные резервные копии, недельные итоги,
-меню команд, обработка ошибок и логирование, 144 теста.
-
----
-
-## Чего продукт НЕ делает
-
-Честный список, чтобы не было сюрпризов:
-
-- **Не считает прибыль.** Себестоимость здесь — это только сырьё по рецептуре.
-  Аренда, зарплаты, налоги и эквайринг системе неизвестны, и маржа не выдаётся
-  за чистую прибыль.
-- **Не измеряет ушедших из очереди.** Их нет в чеках по определению. Продукт
-  показывает, когда вы упираетесь в потолок скорости, и даёт оценку прироста
-  от второго бариста — **явно помеченную как сценарий**, с указанием допущения.
-- **Не считает возвращаемость гостей без карт лояльности.** Если касса не
-  передаёт идентификатор гостя, раздел честно говорит, что этого не знает.
-- **Не ведёт полноценный складской учёт.** Инвентаризация не обязательна:
-  расход считается по чекам. Пересчёт остатка уточняет картину («хватит на 2
-  дня»), но продукт не требует его ежедневно — продукт, который держится на
-  ручном вводе, умирает вместе с бариста, которого научили.
-- **Не предсказывает погоду и праздники.** Только собственная история продаж.
-  Сезонность холодных напитков видна по ней же.
-- **Не работает с маркировкой «Честный ЗНАК».** Это отдельная задача.
-- **Одна точка на один запуск.** `venue_id` в схеме заложен, но мультиточка и
-  мультиарендность не поддерживаются: одна база, один бот, один `.env`.
+**Production features:** self-monitoring health checks (the bot warns you itself if the data stops
+updating), nightly backups, weekly summaries, a command menu, error handling and logging, 144 tests.
 
 ---
 
-## Что нужно для запуска (боевой режим)
+## What the product does NOT do
 
-1. **Токен бота** — Telegram → [@BotFather](https://t.me/BotFather) → `/newbot`.
-2. **chat_id получателей** сводки — запустить бота, написать `/start`, бот покажет id.
-3. **Выгрузка чеков** за 1–2 месяца (Excel/CSV) из кассы или ОФД.
-4. **Сервер** — любой дешёвый VPS (~300–600 ₽/мес). Данные в РФ — 152-ФЗ.
-5. *(опционально)* локальная модель Ollama — включает свободные вопросы. **Без неё всё работает.**
+An honest list, so there are no surprises:
 
-## Установка одной командой
+- **It does not compute profit.** Cost here means raw ingredients per the recipe only. Rent,
+  wages, taxes and card-processing fees are unknown to the system, and margin is never passed off
+  as net profit.
+- **It does not measure people who left the queue.** They are by definition not in the receipts.
+  The product shows when you are hitting your speed ceiling and gives an estimate of the gain from
+  a second barista — **explicitly labelled as a scenario**, with its assumption spelled out.
+- **It does not compute guest retention without loyalty cards.** If the till does not pass a guest
+  identifier, the section honestly says it does not know.
+- **It does not run full stock accounting.** A stocktake is not required: consumption is computed
+  from receipts. Recounting what is on the shelf sharpens the picture ("enough for 2 days"), but
+  the product does not demand it daily — a product resting on manual entry dies along with the
+  barista who was trained to do it.
+- **It does not predict weather or public holidays.** Only the shop's own sales history. The
+  seasonality of cold drinks is visible from that same history.
+- **It does not work with "Chestny ZNAK" product labelling** (the Russian mandatory goods-marking
+  system). That is a separate project.
+- **One site per deployment.** `venue_id` is in the schema, but multi-site and multi-tenant setups
+  are not supported: one database, one bot, one `.env`.
+
+---
+
+## What you need to run it in production
+
+1. **A bot token** — Telegram → [@BotFather](https://t.me/BotFather) → `/newbot`.
+2. **The `chat_id` of the briefing recipients** — start the bot, send `/start`, and it shows the id.
+3. **A receipts export** covering 1–2 months (Excel/CSV) from the till or the fiscal data operator.
+4. **A server** — any cheap VPS (~₽300–600/month). Data stays in Russia, per Federal Law 152-FZ.
+5. *(optional)* a local Ollama model — this enables free-form questions. **Everything works without it.**
+
+## One-command install
 
 ```bash
 bash install.sh
 ```
-Скрипт поставит зависимости, создаст окружение и `.env`, сгенерирует пароль для
-сайта и (на сервере, от root) настроит автозапуск служб.
+The script installs the dependencies, creates the environment and `.env`, generates a password for
+the web dashboard and — on a server, run as root — sets the services to start automatically.
 
-## Установка вручную
+## Manual install
 
 ```bash
 python3 -m venv venv && source venv/bin/activate
@@ -197,199 +191,193 @@ pip install -r requirements.txt
 cp .env.example .env
 nano .env            # BOT_TOKEN, BRIEF_CHAT_IDS, VENUE_NAME
 
-python -m coffeeos seed                        # демо-данные (90 дней)
-# ИЛИ реальные чеки:
-python -m coffeeos import выгрузка.csv --reset
+python -m coffeeos seed                        # demo data (90 days)
+# OR your real receipts:
+python -m coffeeos import выгрузка.csv --reset # выгрузка.csv = your till export file
 ```
 
-## Запуск
+## Running it
 
 ```bash
-python -m coffeeos bot     # Telegram-бот (основной интерфейс + утренняя сводка)
-python -m coffeeos web     # веб-дашборд → http://СЕРВЕР:8000
+python -m coffeeos bot     # Telegram bot (the main interface + the morning briefing)
+python -m coffeeos web     # web dashboard → http://SERVER:8000
 ```
 
-Проверка без Telegram:
+Checking it without Telegram (the subcommands are transliterated Russian; glosses on the right):
 
 ```bash
-python -m coffeeos brief         # утренняя сводка
-python -m coffeeos marzha        # маржа, фудкост и разбор меню
-python -m coffeeos vitrina       # витрина на завтра
-python -m coffeeos zakupki       # заявка поставщику
-python -m coffeeos smena         # загрузка смены
-python -m coffeeos upusheno      # упущенная выручка
-python -m coffeeos nedelya       # итоги недели
-python -m coffeeos status        # состояние системы
-python -m coffeeos ask "какая маржа у латте"
-python -m pytest -q              # тесты ядра
-python tools/simulate.py         # проверить утверждения на симуляции
+python -m coffeeos brief         # morning briefing
+python -m coffeeos marzha        # margin, food cost and the menu breakdown
+python -m coffeeos vitrina       # tomorrow's display case
+python -m coffeeos zakupki       # supplier request
+python -m coffeeos smena         # shift load
+python -m coffeeos upusheno      # lost revenue
+python -m coffeeos nedelya       # the week's results
+python -m coffeeos status        # system health
+python -m coffeeos ask "какая маржа у латте"   # "what's the margin on a latte"
+python -m pytest -q              # core tests
+python tools/simulate.py         # test the claims in simulation
 ```
 
 ---
 
-## Как считается себестоимость
+## How cost is computed
 
-Рецептура напитков поставляется готовой (`coffeeos/reference.py`) и
-разворачивается в таблицу `recipes` по каждому размеру. Дальше на каждую строку
-чека:
+The drinks recipe book ships ready (`coffeeos/reference.py`) and is expanded into a `recipes` table
+for every size. Then, for each receipt line:
 
-1. Позиция **разбирается**: «Айс латте 450 на овсяном + сироп» → Латте, размер
-   L, овсяное молоко, холодный, модификатор «сироп».
-2. Берётся рецепт нужного размера, **молоко подменяется** на то, что в чеке,
-   модификаторы добавляются сверху.
-3. Если чек говорит «в зале» — одноразовая посуда из расчёта убирается.
-4. Каждый ингредиент умножается на свою цену за грамм/миллилитр/штуку.
+1. The item is **parsed**: "Iced latte 450 with oat + syrup" → latte, size L, oat milk, cold,
+   modifier "syrup".
+2. The recipe for that size is taken, the **milk is substituted** for whatever the receipt says,
+   and modifiers are added on top.
+3. If the receipt says "dine in", disposables are removed from the calculation.
+4. Every ingredient is multiplied by its own price per gram / millilitre / unit.
 
-**Цены помечаются.** Пока владелец не подтвердил свою цену, она считается
-типовой, и продукт пишет «часть цен типовые, а не ваши». Если цена
-**неизвестна** (закупочная цена витрины), себестоимость не показывается
-совсем — `None`, а не ноль. Ноль означал бы «маржа 100%», и владелец принял бы
-это за правду.
+**Prices are labelled.** Until the owner has confirmed their own price, it counts as a typical one
+and the product says "some prices are typical, not yours". If a price is **unknown** (the purchase
+price of a display-case item), the cost is not shown at all — `None`, not zero. Zero would mean
+"100% margin", and the owner would take that as the truth.
 
-Поправить цену: `цена зерно 1800` в боте. Посмотреть, чего не хватает: `цены`.
+To correct a price, type `цена зерно 1800` ("price beans 1800") in the bot. To see what is missing,
+type `цены` ("prices").
 
-## Как считается заказ витрины
+## How the display-case order is computed
 
-Витрина — единственное, что может кончиться: напиток делается на заказ.
+The display case is the only thing that can run out: a drink is made to order.
 
-**1. Продажи — это не спрос.** Если круассаны кончились в 11:20, продажи
-показывают только то, что успели поставить. Такие дни находятся по чекам
-(продажи оборвались раньше СВОЕГО обычного часа, а гости ещё шли), и спрос
-восстанавливается по условному матожиданию усечённого распределения.
+**1. Sales are not demand.** If the croissants ran out at 11:20, sales only show what you managed
+to put out. Such days are found from the receipts (sales stopped earlier than *that item's* usual
+hour while guests were still coming), and demand is recovered via the conditional expectation of a
+truncated distribution.
 
-**2. День недели — усадкой, а не жёстким правилом.** Одна суббота с ярмаркой не
-утраивает заказ, но и восемь суббот не игнорируются.
+**2. Day of week applies as a shrunk adjustment, not a hard rule.** One Saturday with a street fair
+does not triple the order, but eight Saturdays are not ignored either.
 
-**3. Запас — из целевого уровня сервиса.** Заказ = средний спрос + z·сигма
-(по умолчанию 70-й перцентиль, настройка `CASE_SERVICE_LEVEL`). Недостающая
-единица дороже непроданной: первая — гость, который завтра пойдёт завтракать в
-другое место, вторая — лишь остаток.
+**3. The buffer comes from a target service level.** Order = mean demand + z·sigma (70th percentile
+by default, configurable via `CASE_SERVICE_LEVEL`). A missing unit costs more than an unsold one:
+the first is a guest who will have breakfast elsewhere tomorrow, the second is only leftover stock.
 
-Ручной ввод списаний **не обязателен**: распроданность видна по чекам. Это
-проверяется отдельным тестом.
+Manual waste entry is **not required**: selling out is visible from the receipts. A dedicated test
+verifies this.
 
-## Как считается заказ поставщику
+## How the supplier order is computed
 
-Расход считается точно — по проданным чашкам и рецептуре, без инвентаризации.
-Дальше:
+Consumption is computed exactly — from cups sold and the recipe book, with no stocktake. Then:
 
-- **срок поставки влияет на то, КОГДА заказать, а не на СКОЛЬКО.** Если
-  прибавлять его к объёму каждый раз, запас растёт с каждым циклом;
-- **скоропорт ограничен разумным запасом** — двухнедельный запас молока это не
-  запас, это списание;
-- **профиль дней недели** учитывается: пятничная заявка на выходные и
-  вторничная — разные объёмы;
-- **пересчёт остатка не обязателен.** Без него заявка строится по расходу; с
-  ним система говорит «хватит на 2 дня, а поставка идёт 3 — горит».
+- **lead time affects WHEN to order, not HOW MUCH.** Add it to the volume every time and stock
+  grows with every cycle;
+- **perishables are capped at a sensible level** — a two-week supply of milk is not a supply, it
+  is waste;
+- **the day-of-week profile is accounted for**: a Friday request covering the weekend and a Tuesday
+  one are different volumes;
+- **recounting the shelf is not required.** Without it the request is built from consumption; with
+  it, the system says "enough for 2 days, and delivery takes 3 — this is urgent".
 
-Отметить остаток: `остаток зерно 4` в боте.
+To record what is on the shelf, type `остаток зерно 4` ("stock beans 4") in the bot.
 
-## Что делает раздел «Смена» и чего он не делает
+## What the "Shift" section does and does not do
 
-Кофейня упирается не в запас, а в руки. Измерить ушедших из очереди по чекам
-невозможно, поэтому продукт делает то, что можно сделать честно:
+A coffee shop is constrained not by stock but by hands. Measuring people who left the queue is
+impossible from receipts, so the product does what can be done honestly:
 
-1. считает **собственную пропускную способность** — сколько чашек в час эта
-   кофейня выдаёт, когда старается (высокий перцентиль её же часов, а не
-   отраслевой норматив);
-2. находит часы, где она регулярно работает у этого потолка **и** где есть
-   настоящий наплыв (час выше медианного минимум в 1,4 раза);
-3. **проверяет упор в потолок по распределению**: если час просто популярный,
-   число чашек в нём гуляет день ото дня; если рук не хватает — распределение
-   срезано сверху, изо дня в день выходит один и тот же максимум;
-4. и только если упор подтверждён минимум в четверти дней, даёт оценку прироста
-   от второго бариста — **с явно написанным допущением**.
+1. it computes **the shop's own throughput** — how many cups per hour this shop puts out when it is
+   pushing (a high percentile of its own hours, not an industry benchmark);
+2. it finds the hours where it regularly runs at that ceiling **and** where there is a genuine rush
+   (an hour at least 1.4× above the median);
+3. it **verifies the ceiling from the distribution**: if an hour is merely popular, the cup count
+   in it varies day to day; if hands are the constraint, the distribution is clipped at the top and
+   the same maximum comes out day after day;
+4. and only if the ceiling is confirmed on at least a quarter of days does it estimate the gain
+   from a second barista — **with the assumption written out explicitly**.
 
-Разница между «вы теряете 40 000 ₽ на очереди» и «в эти два часа вы упираетесь
-в потолок в 43% дней; если второй бариста поднимет скорость на 20%, это около
-40 000 ₽ в месяц — при условии, что очередь дожидается» — это разница между
-продуктом и обещанием.
+The difference between "you are losing ₽40,000 to the queue" and "in these two hours you hit the
+ceiling on 43% of days; if a second barista raises throughput by 20%, that is around ₽40,000 a
+month — provided the queue waits" is the difference between a product and a promise.
 
 ---
 
-## Загрузка реальных чеков
+## Loading real receipts
 
-`import_receipts` понимает разные форматы выгрузок (Poster, iiko, r_keeper,
-Эвотор, Quick Resto, ОФД, 1С). Он ищет колонки по ключевым словам: дата/время,
-наименование, **модификаторы**, **размер**, количество, цена/сумма, номер чека,
-тип оплаты, **сотрудник**, **гость**, **тип заказа**. Разделитель (`;`, `,`,
-табуляция, `|`) определяется автоматически, как и кодировка (UTF-8, cp1251).
+`import_receipts` understands exports from a range of Russian till systems (Poster, iiko,
+r_keeper, Evotor, Quick Resto, fiscal data operators, 1C). It finds columns by keyword: date/time,
+item name, **modifiers**, **size**, quantity, price/total, receipt number, payment type,
+**employee**, **guest**, **order type**. The delimiter (`;`, `,`, tab, `|`) is detected
+automatically, as is the encoding (UTF-8, cp1251).
 
 ```bash
 python -m coffeeos import poster_july.csv --reset
 ```
 
-Модификаторы из отдельной колонки приклеиваются к названию перед разбором:
-«Латте» + «овсяное молоко» — это латте на овсяном, и стоит он дороже в
-себестоимости.
+Modifiers held in a separate column are glued onto the item name before parsing: "Latte" + "oat
+milk" is a latte on oat, and it costs more.
 
-Каталог меню строится из чеков **автоматически**. Если позиция определена
-неверно, поправьте её одной фразой (`витрина сырники`), а затем пересоберите
-разбор всей истории:
+The menu catalogue is built from the receipts **automatically**. If an item is classified wrongly,
+correct it with a single phrase (`витрина сырники` — "display case: syrniki"), then rebuild the
+parse over the whole history:
 
 ```bash
 python -m coffeeos rescan
 ```
 
-Если колонки называются нестандартно — поправьте `COLUMN_HINTS` в
-`coffeeos/import_receipts.py`, а словарь напитков — в `coffeeos/menu.py`.
+If your columns are named unusually, adjust `COLUMN_HINTS` in `coffeeos/import_receipts.py`, and
+the drinks dictionary in `coffeeos/menu.py`.
 
-## Что система НЕ считает товаром
+## What the system does NOT treat as a product
 
-Служебные позиции кассы (пакеты, скидки, депозиты, сертификаты, возвраты) не
-попадают в расчёты, а возвраты вычитаются из выручки. Отдельно распознаются
-**добавки** («Сироп карамель», «Овсяное молоко» отдельной строкой): без этого
-attach-rate «кофе + еда» завышался бы вдвое. Списки признаков —
-`NON_PRODUCT_HINTS` и `ADDON_WHOLE` в `coffeeos/menu.py`.
+Service lines from the till (bags, discounts, deposits, gift cards, refunds) are kept out of the
+calculations, and refunds are subtracted from revenue. **Add-ons** are recognised separately ("Syrup,
+caramel" or "Oat milk" as their own line): without that, the "coffee + food" attach rate would be
+inflated twofold. The keyword lists are `NON_PRODUCT_HINTS` and `ADDON_WHOLE` in `coffeeos/menu.py`.
 
 ---
 
-## Ввод одной строкой (в боте)
+## One-line entry (in the bot)
+
+The bot takes plain Russian; English glosses on the right.
 
 ```
-списание круассаны 4        — списать витрину (по ценнику)
-вылил молоко 1,5            — списать молоко (по себестоимости)
-остаток зерно 3             — пересчитали остаток, в кг/литрах/штуках
-цена зерно 1800             — своя закупочная цена за упаковку
-сделал калибровку           — отметить регламент
-витрина сырники             — позиция стоит в витрине
-не витрина вода             — убрать из заказа витрины
-каталог · цены · обслуживание
+списание круассаны 4        — write off display-case stock (at menu price)
+вылил молоко 1,5            — write off milk (at cost)
+остаток зерно 3             — recounted stock, in kg / litres / units
+цена зерно 1800             — your own purchase price per pack
+сделал калибровку           — record a maintenance job
+витрина сырники             — this item belongs in the display case
+не витрина вода             — remove it from the display-case order
+каталог · цены · обслуживание   — catalogue · prices · maintenance
 ```
 
-## Резервные копии
+## Backups
 
-База со всей историей копируется автоматически каждую ночь; хранятся последние
-`BACKUP_KEEP` копий (по умолчанию 14) в папке `backups`.
+The database with the full history is copied automatically every night; the last `BACKUP_KEEP`
+copies are kept (14 by default) in the `backups` folder.
 
 ```bash
-python -m coffeeos backup     # копия прямо сейчас
-python -m coffeeos backups    # список копий
+python -m coffeeos backup     # a copy right now
+python -m coffeeos backups    # list the copies
 ```
-Восстановление: остановить бота, скопировать нужный файл из `backups` на место
-`coffeeos.db`, запустить бота.
+To restore: stop the bot, copy the file you want from `backups` over `coffeeos.db`, start the bot.
 
-## Пароль на сайт
+## A password on the web dashboard
 
-На боевом сервере обязательно задайте в `.env`:
+On a production server you must set these in `.env`:
 ```
 WEB_USER=owner
-WEB_PASSWORD=ваш_пароль
+WEB_PASSWORD=your_password
 ```
-Иначе выручку кофейни увидит любой, кто знает адрес. `install.sh` генерирует
-пароль автоматически.
+Otherwise anyone who knows the address can see the shop's revenue. `install.sh` generates a
+password automatically.
 
 ---
 
-## Бесплатная модель без OpenAI (из России)
+## A free model, no OpenAI needed (workable from Russia)
 
-Частые вопросы и все кнопки работают **бесплатно и без ИИ**. ИИ нужен только
-для редких нестандартных вопросов.
+The common questions and every button work **free and with no AI at all**. AI is only needed for
+the rare, unusual question.
 
-### Вариант А (рекомендую) — локальная бесплатная модель (Ollama qwen2.5:3b)
+### Option A (recommended) — a free local model (Ollama qwen2.5:3b)
 
-Данные не покидают машину (плюс к 152-ФЗ), платить не нужно, из России работает
-без ограничений. Нужно **4+ ГБ памяти**.
+The data never leaves the machine (which also helps with Federal Law 152-FZ), there is nothing to
+pay, and it works from Russia without restrictions. Needs **4+ GB of memory**.
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
@@ -397,7 +385,7 @@ ollama serve
 ollama pull qwen2.5:3b
 ```
 
-Эти строки в `.env` уже прописаны по умолчанию:
+These lines are already in `.env` by default:
 
 ```
 LLM_BASE_URL=http://localhost:11434/v1
@@ -405,52 +393,51 @@ LLM_MODEL=qwen2.5:3b
 LLM_API_KEY=ollama
 ```
 
-Проверить: `python -m coffeeos llm` — скажет 🟢/🔴 и что именно сделать. То же
-состояние видно в `status` и в боте по `/status`.
+Check it with `python -m coffeeos llm` — it reports 🟢/🔴 and exactly what to do. The same status is
+visible in `status` and in the bot via `/status`.
 
-Если Ollama не запущена или модель не скачана, бот не «немеет»: кнопки и частые
-вопросы считаются как обычно, а на свободный вопрос он ответит понятной
-причиной, а не generic-заглушкой.
+If Ollama is not running or the model has not been pulled, the bot does not go mute: the buttons and
+common questions are computed as usual, and a free-form question gets an intelligible reason back
+rather than a generic stub.
 
-### Вариант Б — бесплатный тариф Groq / OpenRouter
+### Option B — the free tier of Groq / OpenRouter
 
 ```
 LLM_BASE_URL=https://api.groq.com/openai/v1
 LLM_MODEL=llama-3.1-8b-instant
-LLM_API_KEY=ваш_ключ
+LLM_API_KEY=your_key
 ```
-(Регистрация может потребовать VPN; данные уходят на зарубежный сервис.)
+(Signing up may require a VPN from Russia; the data goes to a service abroad.)
 
-### Вариант В — совсем без ИИ
+### Option C — no AI at all
 
-Оставьте `LLM_*` и `OPENAI_API_KEY` пустыми.
+Leave `LLM_*` and `OPENAI_API_KEY` empty.
 
 ---
 
-## Автозагрузка чеков
+## Automatic receipt loading
 
-Чтобы данные обновлялись без ручных команд, включите автозагрузку в `.env`
-(`SYNC_MODE`). Дубли исключаются по номеру чека — повторная загрузка безопасна.
+To keep the data fresh without manual commands, enable automatic loading in `.env` (`SYNC_MODE`).
+Duplicates are excluded by receipt number, so re-loading is safe.
 
-**Режим `folder`** (работает сразу):
+**`folder` mode** (works out of the box):
 ```
 SYNC_MODE=folder
 SYNC_FOLDER=/opt/coffeeos/vygruzki
 SYNC_INTERVAL_MIN=60
 ```
 
-**Режим `http`** (прямое подключение к кассе/ОФД):
+**`http` mode** (a direct connection to the till or fiscal data operator):
 ```
 SYNC_MODE=http
-SYNC_URL=https://<адрес API вашей кассы>/receipts
-SYNC_TOKEN=<ключ доступа>
+SYNC_URL=https://<your till's API address>/receipts
+SYNC_TOKEN=<access key>
 ```
-Имена полей при необходимости подстраиваются в `coffeeos/sync.py` →
-`FIELD_ALIASES`.
+Field names can be adjusted where needed in `coffeeos/sync.py` → `FIELD_ALIASES`.
 
-Проверить один цикл: `python -m coffeeos sync`.
+Test one cycle with: `python -m coffeeos sync`.
 
-## Как держать бота онлайн 24/7 (systemd)
+## Keeping the bot online 24/7 (systemd)
 
 `/etc/systemd/system/coffeeos-bot.service`:
 
@@ -471,32 +458,35 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl enable --now coffeeos-bot
-# аналогично coffeeos-web.service с ExecStart=... -m coffeeos web
+# the same for coffeeos-web.service, with ExecStart=... -m coffeeos web
 ```
 
 ---
 
-## Структура проекта
+## Project layout
 
 ```
 coffeeos/
-  config.py           настройки из .env
-  db.py               SQLite-схема и миграции (для масштаба → PostgreSQL)
-  menu.py             разбор позиции чека: напиток, размер, молоко, добавки, вид
-  reference.py        библиотека рецептов, ингредиентов и регламента обслуживания
-  costing.py          себестоимость порции, маржа, фудкост, разбор меню
-  supply.py           расход сырья, точка заказа, заявка поставщику, регламент
-  demand.py           витрина: спрос, распроданность, заказ, упущенная выручка
-  economics.py        целевой уровень сервиса витрины
-  analytics.py        продажи, часы, дни, attach-rate, корзина, напитки, гости
-  staffing.py         пропускная способность, упор в потолок, второй бариста
-  catalog.py          каталог меню, списания, пересборка разбора
-  orchestrator.py     маршрутизация запросов + формулировки + сводки
-  bot.py              Telegram-бот
-  webapp.py           FastAPI: /api/summary + живой дашборд
-  import_receipts.py  загрузчик чеков из выгрузки кассы/ОФД
-  seed.py             генератор демо-данных кофейни
+  config.py           settings from .env
+  db.py               SQLite schema and migrations (PostgreSQL when it needs to scale)
+  menu.py             parsing a receipt line: drink, size, milk, add-ons, hot/cold
+  reference.py        the library of recipes, ingredients and the maintenance schedule
+  costing.py          cost per serving, margin, food cost, menu breakdown
+  supply.py           ingredient consumption, reorder point, supplier request, schedule
+  demand.py           display case: demand, sell-outs, the order, lost revenue
+  economics.py        the target service level for the display case
+  analytics.py        sales, hours, days, attach rate, basket, drinks, guests
+  staffing.py         throughput, hitting the ceiling, the second barista
+  catalog.py          menu catalogue, waste, rebuilding the parse
+  orchestrator.py     request routing + wording + briefings
+  bot.py              the Telegram bot
+  webapp.py           FastAPI: /api/summary + the live dashboard
+  import_receipts.py  the receipts loader for till / fiscal-operator exports
+  seed.py             demo data generator for a coffee shop
 tools/
-  simulate.py         проверка утверждений продукта на симуляции
-live.html             веб-дашборд на живых данных (его отдаёт сервер)
+  simulate.py         testing the product's claims in simulation
+live.html             the live-data web dashboard (served by the server)
 ```
+
+<sub>The bot, the dashboard, the briefings and the code are in Russian — CoffeeOS is built for a
+Russian coffee shop owner.</sub>
